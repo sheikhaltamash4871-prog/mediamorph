@@ -511,6 +511,15 @@
                             <span id="ai-file-size" class="text-slate-400 text-[10px]"></span>
                         </div>
                     </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button" id="ai-browse-btn" class="py-3 px-3 rounded-xl border border-cyan-400/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-200 text-xs font-extrabold transition-colors">
+                            <i class="fa-solid fa-folder-open mr-2"></i>BROWSE IMAGE
+                        </button>
+                        <button type="button" id="ai-paste-btn" class="py-3 px-3 rounded-xl border border-violet-400/30 bg-violet-500/10 hover:bg-violet-500/20 text-violet-200 text-xs font-extrabold transition-colors">
+                            <i class="fa-solid fa-paste mr-2"></i>PASTE IMAGE
+                        </button>
+                    </div>
+                    <p id="ai-paste-hint" class="text-[10px] text-slate-500 text-center">Tip: Copy an image, then press Ctrl + V anywhere in this detector.</p>
                     <button id="btn-analyze-ai" disabled onclick="analyzeImageAuthenticity()" class="btn-luxury w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 font-extrabold text-xs text-black shadow-lg shadow-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed">
                         <i class="fa-solid fa-magnifying-glass-chart mr-2"></i>ANALYZE IMAGE
                     </button>
@@ -1435,6 +1444,31 @@
             const input = document.getElementById('ai-file-input');
             const zone = document.getElementById('ai-dropzone');
             zone.addEventListener('click', () => input.click());
+            const browseBtn = document.getElementById('ai-browse-btn');
+            const pasteBtn = document.getElementById('ai-paste-btn');
+            browseBtn.addEventListener('click', () => input.click());
+            pasteBtn.addEventListener('click', async () => {
+                const hint = document.getElementById('ai-paste-hint');
+                try {
+                    if (!navigator.clipboard || !navigator.clipboard.read) throw new Error('Clipboard image access is unavailable.');
+                    const items = await navigator.clipboard.read();
+                    for (const item of items) {
+                        const imageType = item.types.find(type => type.startsWith('image/'));
+                        if (!imageType) continue;
+                        const blob = await item.getType(imageType);
+                        const ext = imageType.split('/')[1].replace('jpeg', 'jpg').replace('svg+xml', 'svg');
+                        const file = new File([blob], 'pasted-image.' + ext, { type: imageType, lastModified: Date.now() });
+                        selectAIDetectorFile(file);
+                        hint.textContent = 'Image pasted from clipboard successfully.';
+                        hint.classList.remove('text-slate-500');
+                        hint.classList.add('text-emerald-400');
+                        return;
+                    }
+                    hint.textContent = 'Clipboard mein image nahi mili. Image copy karke Ctrl + V press karein.';
+                } catch (err) {
+                    hint.textContent = 'Clipboard button blocked by browser? Image copy karein aur Ctrl + V press karein.';
+                }
+            });
             input.addEventListener('change', e => {
                 if (e.target.files && e.target.files[0]) selectAIDetectorFile(e.target.files[0]);
             });
@@ -1445,6 +1479,27 @@
                 zone.classList.remove('border-neon-cyan');
                 if (e.dataTransfer.files && e.dataTransfer.files[0]) selectAIDetectorFile(e.dataTransfer.files[0]);
             });
+        });
+
+        window.addEventListener('paste', e => {
+            const detector = document.getElementById('ai-detector');
+            if (!detector || detector.classList.contains('hidden')) return;
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type && item.type.startsWith('image/')) {
+                    const blob = item.getAsFile();
+                    if (blob) {
+                        e.preventDefault();
+                        const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+                        const file = new File([blob], 'pasted-image.' + ext, { type: blob.type, lastModified: Date.now() });
+                        selectAIDetectorFile(file);
+                        const hint = document.getElementById('ai-paste-hint');
+                        if (hint) { hint.textContent = 'Image pasted from clipboard successfully.'; hint.classList.remove('text-slate-500'); hint.classList.add('text-emerald-400'); }
+                    }
+                    break;
+                }
+            }
         });
 
         function selectAIDetectorFile(file) {
