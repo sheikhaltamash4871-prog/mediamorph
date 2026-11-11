@@ -1,0 +1,179 @@
+import { SkipLink } from '@/components/ui/SkipLink'
+import { useEffect } from 'react'
+import { scheduleWarmPdfFonts } from '@/lib/pdf/fontWarm'
+import { documentFaces } from '@/lib/documentFaces'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Eye } from 'lucide-react'
+import type { ResumeDocument } from '@/types/document'
+import { useEditorStore } from '@/store/useEditorStore'
+import { useResumeStore } from '@/store/useResumeStore'
+import { useAppStore } from '@/store/useAppStore'
+import { useIsCompactEditor } from '@/hooks/useIsPhone'
+import { cn } from '@/lib/utils'
+import { EditorTopBar } from './EditorTopBar'
+import { PdfExportStatus } from './PdfExportStatus'
+import { EditorTour } from './EditorTour'
+import { CommandPalette } from './CommandPalette'
+import { ShareDialog } from './ShareDialog'
+import { LeftRail } from './LeftRail'
+import { ContentPanel } from './panels/ContentPanel'
+import { DesignPanel } from './panels/DesignPanel'
+import { AtsPanel } from './panels/AtsPanel'
+import { TemplateGallery } from './TemplateGallery'
+import { isPhoneLayout } from '@/lib/layoutMode'
+import { ResumePreview } from '@/components/preview/ResumePreview'
+import { setItemDelete } from '@/templates/_shared/itemActions'
+import { deleteItem } from '@/store/deleteItem'
+
+const PANEL_TITLES: Record<string, string> = {
+  content: 'Content',
+  design: 'Design',
+  templates: 'Templates',
+  ats: 'Score & job match',
+}
+
+export function Editor({ doc }: { doc: ResumeDocument }) {
+  // Two narrow selectors, not the whole store: selecting the store object
+  // re-rendered the entire editor - both artboard trees included - on EVERY
+  // editor-store write, and ResumePreview writes onePageScale after each doc
+  // change, so typing paid a second full-tree render for nothing.
+  const leftTab = useEditorStore((s) => s.leftTab)
+  const leftOpen = useEditorStore((s) => s.leftOpen)
+  // A touch device under `xl` can't show the panel and a usable canvas at the
+  // same time — side by side, the sheet is squeezed to its 0.35 minimum scale
+  // and every on-canvas control with it. There the panel takes the whole
+  // editing area (as it already does on a phone) and the canvas gets the full
+  // width the moment the panel is closed. A mouse keeps the split.
+  const compact = useIsCompactEditor()
+  const split = !compact
+
+  // Global undo/redo shortcuts.
+  // The canvas's trash buttons delete with a message and an Undo, like the
+  // panel's (store/deleteItem.ts); templates cannot import the stores.
+  useEffect(() => {
+    setItemDelete(deleteItem)
+    return () => setItemDelete(null)
+  }, [])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey
+      if (!mod) return
+      // Let editable fields (inputs, textareas, TipTap) handle their own undo.
+      const t = e.target as HTMLElement | null
+      if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.closest('.ProseMirror'))) return
+      if (e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) useResumeStore.temporal.getState().redo()
+        else useResumeStore.temporal.getState().undo()
+      } else if (e.key.toLowerCase() === 'y') {
+        e.preventDefault()
+        useResumeStore.temporal.getState().redo()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  // Save this resume's PDF fonts on the device while there IS a connection,
+  // so that it exports without one. Idle, silent, once per set of families.
+  const faces = documentFaces(doc.metadata).join('|')
+  useEffect(() => {
+    scheduleWarmPdfFonts(faces.split('|'))
+  }, [faces])
+
+  const setLeftOpen = useEditorStore((s) => s.setLeftOpen)
+
+  // Fresh blank resume: open on Templates so "pick your design" is step one —
+  // 52 live previews of THIS (empty) doc beat guessing at names.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('cvaurum:pick-design') === doc.id) {
+        sessionStorage.removeItem('cvaurum:pick-design')
+        useEditorStore.getState().setLeftTab('templates')
+        useEditorStore.getState().setLeftOpen(true)
+        // No toast here: the gallery's own first line says the same, and on a
+        // phone the toast sat on top of the tour's invite card (2026-10-24).
+      }
+    } catch {
+      /* private mode */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc.id])
+
+  // The skip link lands in the resume's first field, putting the page on
+  // screen first where the panel covers it (a phone, or a narrow window).
+  const skipToPage = () => {
+    if (leftOpen && !split) setLeftOpen(false)
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-tour="canvas"] [role="textbox"]')?.focus())
+    )
+  }
+
+  return (
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <SkipLink label="Skip to your resume" onSkip={skipToPage} />
+      <EditorTopBar doc={doc} />
+      <PdfExportStatus />
+      <div className="flex min-h-0 flex-1 flex-col desk:flex-row">
+        <LeftRail />
+        <AnimatePresence initial={false}>
+          {leftOpen && (
+            <motion.aside
+              key="panel"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}
+              // Phone, and any touch device under `xl`: full-width, fills the
+              // editing area (canvas is hidden). Mouse: a column beside the
+              // canvas, 392px on a wide screen and down to 300px in a window
+              // snapped to half a laptop screen, so the canvas keeps room.
+              data-tour="panel"
+              className={cn(
+                'order-1 flex min-h-0 w-full flex-1 flex-col overflow-hidden border-border bg-surface desk:order-none',
+                split && 'desk:w-[clamp(300px,36vw,392px)] desk:flex-none desk:border-r',
+              )}
+            >
+              <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
+                <h2 className="text-sm font-semibold">{PANEL_TITLES[leftTab]}</h2>
+                {/* Not "Preview": the bottom bar already has a Preview that
+                    means the exact-PDF view, and two buttons with one name
+                    and two meanings read as a bug. This one just puts the
+                    editable page on screen. */}
+                <button
+                  className={cn('btn-ghost btn-sm', split && 'desk:hidden')}
+                  onClick={() => setLeftOpen(false)}
+                >
+                  <Eye className="h-4 w-4" /> View page
+                </button>
+              </div>
+              <div className="panel-scroll w-full flex-1 p-4">
+                {leftTab === 'content' && <ContentPanel doc={doc} />}
+                {leftTab === 'design' && <DesignPanel doc={doc} />}
+                {leftTab === 'templates' && <TemplateGallery doc={doc} />}
+                {leftTab === 'ats' && <AtsPanel doc={doc} />}
+              </div>
+            </motion.aside>
+          )}
+        </AnimatePresence>
+        <main
+          data-tour="canvas"
+          aria-label="Your resume"
+          className={cn(
+            // While a section's Style inspector is docked at the right edge
+            // (SectionGear), the canvas gives up its width, so the page
+            // re-fits beside it instead of sliding under it.
+            'order-2 min-h-0 min-w-0 flex-1 desk:order-none desk:mr-[var(--style-dock-w,0px)] desk:transition-[margin] desk:duration-200',
+            leftOpen && (split ? 'phone:hidden' : 'hidden'),
+          )}
+        >
+          <ResumePreview doc={doc} />
+        </main>
+      </div>
+      <EditorTour />
+      <CommandPalette doc={doc} />
+      <ShareDialog doc={doc} />
+    </div>
+  )
+}

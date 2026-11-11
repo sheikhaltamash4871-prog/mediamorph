@@ -1,0 +1,332 @@
+/**
+ * Cmd/Ctrl+K command palette — every editor action, fuzzy-searchable, keyboard
+ * first. Dispatches the SAME store actions the panels use, so anything you can
+ * click you can now type: switch templates, fonts, accent colors, add sections,
+ * change canvas mode, export, toggle focus mode…
+ */
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { isMac, rankCommands, shortcutLabel } from '@/lib/paletteRank'
+import { switchTemplate } from './TemplateGallery'
+import { Command, CornerDownLeft } from 'lucide-react'
+import type { ResumeDocument } from '@/types/document'
+import { TEMPLATES } from '@/templates/registry'
+import { FONTS } from '@/data/fonts'
+import { ADD_LABEL, BODY_SECTION_KEYS, DEFAULT_LABELS, panelColumns, pushNewItem, sectionLabel } from '@/lib/sections'
+import { useResumeStore } from '@/store/useResumeStore'
+import { useEditorStore } from '@/store/useEditorStore'
+import { useAppStore } from '@/store/useAppStore'
+import { runPdfExport } from '@/lib/pdf/exportFlow'
+
+interface Cmd {
+  id: string
+  group: string
+  label: string
+  hint?: string
+  run: () => void
+}
+
+/** Curated accent palette — same set as the header design kit. */
+const ACCENTS: { name: string; hex: string }[] = [
+  { name: 'Blue', hex: '#2563eb' },
+  { name: 'Teal', hex: '#0f766e' },
+  { name: 'Violet', hex: '#7c3aed' },
+  { name: 'Crimson', hex: '#b91c1c' },
+  { name: 'Gold', hex: '#d4982f' },
+  { name: 'Bronze', hex: '#a16207' },
+  { name: 'Pink', hex: '#db2777' },
+  { name: 'Green', hex: '#15803d' },
+  { name: 'Slate', hex: '#475569' },
+  { name: 'Ink', hex: '#0f172a' },
+]
+
+const RECENT_KEY = 'cvaurum:palette-recent'
+
+/** The ids of the last commands run here, newest first. */
+function readRecent(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]') as string[]
+  } catch {
+    return []
+  }
+}
+function rememberRecent(id: string) {
+  try {
+    const next = [id, ...readRecent().filter((r) => r !== id)].slice(0, 5)
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next))
+  } catch {
+    /* private mode */
+  }
+}
+
+/** Scroll the canvas to a section and put the caret in its first field, or
+ *  in the first field of its last entry (the one an "Add" just appended).
+ *  Waits two frames: the mode switch and the new entry both render first. */
+function reachSection(key: string, where: 'first' | 'last') {
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const sec = document.querySelector<HTMLElement>(`[data-tour="canvas"] [data-section="${key}"]`)
+    if (!sec) return
+    const fields = [...sec.querySelectorAll<HTMLElement>('[contenteditable="true"]')]
+    let target = fields[0]
+    if (where === 'last') {
+      const entries = sec.querySelectorAll<HTMLElement>('[data-item-id]')
+      const last = entries[entries.length - 1]
+      target = last?.querySelector<HTMLElement>('[contenteditable="true"]') ?? fields[fields.length - 1]
+    }
+    sec.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    target?.focus({ preventScroll: true })
+  }))
+}
+
+export function CommandPalette({ doc }: { doc: ResumeDocument }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [sel, setSel] = useState(0)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  // Global keybind (and a custom event so buttons can open it too).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setOpen((o) => !o)
+        setQuery('')
+        setSel(0)
+      }
+      if (e.key === 'Escape') setOpen(false)
+    }
+    const onOpen = () => {
+      setOpen(true)
+      setQuery('')
+      setSel(0)
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('cvaurum:open-palette', onOpen)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('cvaurum:open-palette', onOpen)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 30)
+  }, [open])
+
+  const commands = useMemo<Cmd[]>(() => {
+    const applyTemplate = useResumeStore.getState().applyTemplate
+    const updateMetadata = useResumeStore.getState().updateMetadata
+    const ed = useEditorStore.getState()
+    const toast = useAppStore.getState().toast
+    const cmds: Cmd[] = []
+
+    // canvas modes
+    cmds.push(
+      { id: 'mode-edit', group: 'View', label: 'Edit on the page', hint: 'canvas mode', run: () => { ed.setPreviewExact(false); ed.setAtsView(false) } },
+      { id: 'mode-preview', group: 'View', label: 'Exact PDF preview', hint: 'canvas mode', run: () => { ed.setPreviewExact(true); ed.setAtsView(false) } },
+      { id: 'mode-ats', group: 'View', label: 'What the ATS sees', hint: 'canvas mode', run: () => { ed.setAtsView(true); ed.setPreviewExact(false) } },
+      { id: 'focus', group: 'View', label: 'Toggle focus mode', hint: 'dim everything but the section under your cursor', run: () => { useEditorStore.getState().setFocusMode(!useEditorStore.getState().focusMode) } },
+      { id: 'skim', group: 'View', label: 'Toggle recruiter skim heatmap', hint: 'where a 7-second skim lands — deterministic, on-device', run: () => { useEditorStore.getState().setSkimView(!useEditorStore.getState().skimView) } },
+      { id: 'panel-content', group: 'View', label: 'Open Content panel', run: () => { ed.setLeftTab('content'); ed.setLeftOpen(true) } },
+      { id: 'panel-design', group: 'View', label: 'Open Design panel', run: () => { ed.setLeftTab('design'); ed.setLeftOpen(true) } },
+      { id: 'magic-fit-suggest', group: 'View', label: 'Magic fit: suggest', hint: 'measure a few moves that fit better', run: () => { ed.setLeftTab('design'); ed.setLeftOpen(true); setTimeout(() => window.dispatchEvent(new Event('cvaurum:magic-fit-suggest')), 60) } },
+      { id: 'panel-templates', group: 'View', label: 'Open Templates panel', run: () => { ed.setLeftTab('templates'); ed.setLeftOpen(true) } },
+      { id: 'panel-ats', group: 'View', label: 'Open score & job match', hint: 'ATS score, keywords', run: () => { ed.setLeftTab('ats'); ed.setLeftOpen(true) } },
+      { id: 'semantic', group: 'View', label: 'Semantic JD match', hint: 'meaning-level match, in Score', run: () => { ed.setLeftTab('ats'); ed.setLeftOpen(true) } },
+      { id: 'tour', group: 'View', label: 'Show the quick tour', run: () => window.dispatchEvent(new Event('cvaurum:open-tour')) },
+    )
+
+    // export
+    cmds.push(
+      {
+        id: 'export-pdf',
+        group: 'Export',
+        label: 'Download PDF',
+        hint: 'crisp, selectable, ATS-exact',
+        // The same flow as the top bar's Download PDF button: one in-flight
+        // guard, one visible generating state, one outcome message.
+        run: () => runPdfExport(useResumeStore.getState().doc ?? doc),
+      },
+      { id: 'export-menu', group: 'Export', label: 'Open export menu…', hint: 'Word, JSON Resume, PDF', run: () => window.dispatchEvent(new Event('cvaurum:open-export')) },
+      { id: 'share', group: 'Export', label: 'Share privately…', hint: 'private link or encrypted file', run: () => window.dispatchEvent(new Event('cvaurum:open-share')) },
+    )
+
+    // undo / redo
+    cmds.push(
+      { id: 'undo', group: 'Edit', label: 'Undo', hint: shortcutLabel('Ctrl+Z', isMac()), run: () => useResumeStore.temporal.getState().undo() },
+      { id: 'redo', group: 'Edit', label: 'Redo', hint: shortcutLabel('Ctrl+Shift+Z', isMac()), run: () => useResumeStore.temporal.getState().redo() },
+    )
+
+    // templates
+    for (const tpl of TEMPLATES) {
+      cmds.push({
+        id: `tpl-${tpl.id}`,
+        group: 'Template',
+        label: `Template: ${tpl.name}`,
+        hint: tpl.description,
+        run: () => switchTemplate(tpl, applyTemplate, toast),
+      })
+    }
+
+    // fonts
+    for (const f of FONTS.filter((f) => f.category === 'sans' || f.category === 'serif')) {
+      cmds.push({
+        id: `font-${f.name}`,
+        group: 'Font',
+        label: `Font: ${f.name}`,
+        hint: f.category,
+        run: () => updateMetadata((m) => { m.typography.fontFamily = f.name }),
+      })
+    }
+
+    // accent colors
+    for (const a of ACCENTS) {
+      cmds.push({
+        id: `accent-${a.name}`,
+        group: 'Accent',
+        label: `Accent: ${a.name}`,
+        hint: a.hex,
+        run: () => updateMetadata((m) => { m.theme.primary = a.hex }),
+      })
+    }
+
+    // add sections (only ones not already on the resume)
+    // sections on the page: jump to one, or add an entry to it. Both land
+    // the caret in the section, so the palette is a way to reach a field,
+    // not only a list of switches.
+    // What the page shows, including a section the layout never named
+    // (panelColumns): it was missing from Go to and offered again under Add.
+    const shownCols = panelColumns(doc)
+    const onPage = [...shownCols.main, ...shownCols.aside, ...shownCols.footer].filter((k) => !doc.metadata.layout.hidden.includes(k))
+    for (const key of onPage) {
+      const name = sectionLabel(key, doc)
+      cmds.push({
+        id: `goto-${key}`,
+        group: 'Go to',
+        label: `Go to ${name}`,
+        run: () => { ed.setPreviewExact(false); ed.setAtsView(false); ed.markFresh(key); reachSection(key, 'first') },
+      })
+      if (key === 'summary') continue
+      const entry = ADD_LABEL[key] ?? 'entry'
+      cmds.push({
+        id: `add-entry-${key}`,
+        group: 'Add',
+        label: `Add ${entry} to ${name}`,
+        run: () => {
+          // An empty section can be held off the page (Empty sections:
+          // Auto); marked fresh it shows, so the new entry has a place.
+          ed.setPreviewExact(false); ed.setAtsView(false); ed.markFresh(key)
+          useResumeStore.getState().updateContent((c) => pushNewItem(c, key))
+          reachSection(key, 'last')
+        },
+      })
+    }
+
+    const present = new Set([...shownCols.main, ...shownCols.aside, ...shownCols.footer, ...doc.metadata.layout.main, ...doc.metadata.layout.aside])
+    for (const key of BODY_SECTION_KEYS.filter((k) => !present.has(k))) {
+      cmds.push({
+        id: `add-${key}`,
+        group: 'Add section',
+        label: `Add section: ${DEFAULT_LABELS[key] ?? key}`,
+        run: () => {
+          updateMetadata((m) => {
+            if (!m.layout.main.includes(key) && !m.layout.aside.includes(key)) m.layout.main.push(key)
+            m.layout.hidden = m.layout.hidden.filter((k) => k !== key)
+          })
+          ed.markFresh(key)
+          toast(`${DEFAULT_LABELS[key] ?? key} added`, 'success')
+        },
+      })
+    }
+
+    // theme
+    cmds.push({
+      id: 'theme',
+      group: 'App',
+      label: 'Toggle light / dark mode',
+      run: () => {
+        const app = useAppStore.getState()
+        const next = app.settings.theme === 'dark' ? 'light' : 'dark'
+        app.updateSettings({ theme: next })
+      },
+    })
+
+    return cmds
+  }, [doc])
+
+  // Opens on what was used last and the actions people come here for; a
+  // query ranks word-start matches first (src/lib/paletteRank.ts).
+  const results = useMemo(() => rankCommands(commands, query, readRecent()), [commands, query])
+
+  useEffect(() => setSel(0), [query])
+
+  const runSel = (i: number) => {
+    const cmd = results[i]
+    if (!cmd) return
+    setOpen(false)
+    rememberRecent(cmd.id)
+    cmd.run()
+  }
+
+  if (!open) return null
+  return createPortal(
+    <div className="fixed inset-0 z-[85]" role="dialog" aria-modal="true" aria-label="Command palette">
+      <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
+      <div className="absolute left-1/2 top-[12vh] w-[min(38rem,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-2xl border border-border bg-surface shadow-float">
+        <div className="flex items-center gap-2 border-b border-border px-4">
+          <Command className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown') { e.preventDefault(); setSel((s) => Math.min(s + 1, results.length - 1)) }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setSel((s) => Math.max(s - 1, 0)) }
+              if (e.key === 'Enter') { e.preventDefault(); runSel(sel) }
+            }}
+            placeholder="Type a command or a section — template, font, accent, export…"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="palette-list"
+            aria-activedescendant={results[sel] ? `palette-opt-${sel}` : undefined}
+            aria-autocomplete="list"
+            className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            aria-label="Search commands"
+          />
+          <kbd className="rounded border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground">Esc</kbd>
+        </div>
+        <div ref={listRef} id="palette-list" role="listbox" aria-label="Commands" className="max-h-[46vh] overflow-y-auto overscroll-contain p-1.5">
+          {results.length === 0 && <div className="px-3 py-6 text-center text-sm text-muted-foreground">No matching command.</div>}
+          {results.map((c, i) => (
+            <button
+              key={c.id}
+              id={`palette-opt-${i}`}
+              role="option"
+              aria-selected={i === sel}
+              tabIndex={-1}
+              className={`flex min-h-[40px] w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition ${i === sel ? 'bg-primary/10 text-foreground' : 'text-foreground hover:bg-muted/60'}`}
+              // mouseMOVE, not mouseenter: when the list re-renders under a
+              // stationary cursor, mouseenter fires and silently steals the
+              // selection from the keyboard — Enter then runs the wrong command.
+              onMouseMove={() => setSel(i)}
+              onClick={() => runSel(i)}
+            >
+              <span className="flex min-w-0 items-center gap-2.5">
+                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{c.group}</span>
+                <span className="truncate">{c.label}</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                {/* The hint is the second thing you read, so on a phone it
+                    yields: sharing 375px with it truncated the command's own
+                    name to "T…", which is the one word you are searching for. */}
+                {c.hint && <span className="hidden max-w-[12rem] truncate text-xs text-muted-foreground sm:inline">{c.hint}</span>}
+                {i === sel && <CornerDownLeft className="h-3.5 w-3.5 text-muted-foreground" />}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}

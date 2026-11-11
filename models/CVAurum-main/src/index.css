@@ -1,0 +1,344 @@
+@import './styles/fonts.css';
+@import './styles/print.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mobile viewport height: on phones the browser's address/nav bars make 100vh
+   TALLER than the visible area, so a fixed full-height layout (the editor) pushes
+   its bottom tab bar off-screen. Override h-screen to the dynamic viewport height
+   where supported; Tailwind's core 100vh stays as the fallback. */
+@supports (height: 100dvh) {
+  @layer utilities {
+    .h-screen {
+      height: 100dvh;
+    }
+  }
+}
+
+/* ============================================================ design tokens */
+@layer base {
+  /* Mobile browsers (esp. Android Chrome) auto-inflate font sizes on pages they
+     deem "not mobile-optimized" — which silently makes the fixed-width resume
+     measure TALLER on a phone than on desktop, so the editor drew a phantom
+     "Page 2" while the PDF (immune to inflation) stayed one page. Pin it off so
+     the page count is identical everywhere. */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 25% 12%;
+    --surface: 0 0% 100%;
+    --surface-muted: 220 20% 97%;
+    --muted: 220 16% 95%;
+    /* Darkened to clear WCAG AA in the light theme (2026-08-25). At 46% the
+       muted foreground scored 4.31:1 on the muted surface, and the 42% primary
+       scored 3.65:1 both as a button background under white text and as accent
+       text on white. Widening the audit to the editor's own panels found the
+       muted foreground again at 4.09:1 on the CANVAS, which is darker than the
+       muted surface, so it moves once more to 41%. All measured by
+       gate-contrast.cjs; the hues are unchanged, only the lightness. */
+    --muted-foreground: 220 9% 41%;
+    --border: 220 16% 90%;
+    --input: 220 16% 87%;
+    --ring: 36 68% 37%;
+    --primary: 36 68% 37%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 189 94% 43%;
+    --accent-foreground: 222 47% 11%;
+    /* 40% put the ATS badge at 3.12:1 on white; 32% clears AA at 10px. */
+    --success: 142 64% 32%;
+    --warning: 32 95% 44%;
+    --danger: 0 72% 51%;
+    --radius: 0.7rem;
+    --canvas: 220 18% 90%;
+    /* The wordmark's gold. On white the brand gold (#c8941f) reads at 2.72:1,
+       below AA for 16px text, so the light theme uses a darker gold; on the
+       dark background the brand gold has plenty of contrast and is kept. */
+    --brand-gold: #9a6c10;
+    color-scheme: light;
+  }
+
+  .dark {
+    --brand-gold: #c8941f;
+    --background: 225 26% 6%;
+    --foreground: 220 20% 93%;
+    --surface: 224 22% 9%;
+    --surface-muted: 224 20% 12%;
+    --muted: 224 16% 16%;
+    --muted-foreground: 220 12% 64%;
+    --border: 224 14% 19%;
+    --input: 224 14% 23%;
+    --ring: 40 78% 60%;
+    --primary: 40 78% 60%;
+    --primary-foreground: 36 90% 8%;
+    --accent: 189 90% 52%;
+    --accent-foreground: 222 47% 11%;
+    --success: 142 60% 48%;
+    --warning: 38 92% 55%;
+    --danger: 0 75% 60%;
+    --canvas: 225 30% 4.5%;
+    color-scheme: dark;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: hsl(var(--primary) / 0.25);
+  }
+  /* Refined scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+    background-clip: content-box;
+  }
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+/* ============================================================== components */
+@layer components {
+  /* SkipLink: off-screen until a keyboard reaches it, then a plain chip at
+     the top-left above everything (the editor's top bar is z-40). */
+  .skip-link {
+    position: fixed;
+    left: 12px;
+    top: -48px;
+    z-index: 100;
+    border-radius: 8px;
+    background: hsl(var(--foreground));
+    color: hsl(var(--background));
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: top 0.15s ease-out;
+  }
+  .skip-link:focus-visible {
+    top: 12px;
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium
+      transition-all duration-150 disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn h-9 px-4 bg-primary text-primary-foreground hover:brightness-110 active:brightness-95;
+    box-shadow: 0 6px 22px -8px hsl(var(--primary) / 0.55);
+  }
+  .btn-secondary {
+    @apply btn h-9 px-4 bg-muted text-foreground hover:bg-muted/70 border border-border;
+  }
+  .btn-ghost {
+    @apply btn h-9 px-3 text-muted-foreground hover:bg-muted hover:text-foreground;
+  }
+  .btn-outline {
+    @apply btn h-9 px-4 border border-input bg-surface hover:bg-muted text-foreground;
+  }
+  .btn-danger {
+    @apply btn h-9 px-4 bg-danger text-white hover:brightness-110;
+  }
+  .btn-icon {
+    @apply btn h-9 w-9 p-0 text-muted-foreground hover:bg-muted hover:text-foreground;
+  }
+  .btn-sm {
+    @apply h-8 px-3 text-[13px];
+  }
+  .btn-xs {
+    @apply h-7 px-2.5 text-xs;
+  }
+
+  .input {
+    @apply flex h-9 w-full rounded-md border border-input bg-surface px-3 py-1 text-sm text-foreground
+      shadow-soft transition-colors placeholder:text-muted-foreground
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring;
+  }
+  .textarea {
+    @apply input h-auto min-h-[80px] py-2 leading-relaxed resize-y;
+  }
+  .label {
+    @apply block text-xs font-medium text-muted-foreground mb-1.5;
+  }
+  .card {
+    @apply rounded-xl border border-border bg-surface shadow-soft;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground;
+  }
+  .panel-scroll {
+    /* overflow-x-hidden is essential: with only overflow-y set, the x-axis
+       computes to `auto`, letting a long field scroll the whole panel sideways
+       on mobile (the viewport "locks" to the side). Clip it instead. */
+    @apply overflow-y-auto overflow-x-hidden overscroll-contain;
+  }
+  /* segmented control */
+  .segmented {
+    @apply inline-flex items-center gap-0.5 rounded-lg bg-muted p-0.5;
+  }
+  .segmented > button {
+    @apply rounded-md px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground;
+  }
+  .segmented > button[data-active='true'] {
+    @apply bg-surface text-foreground shadow-soft;
+  }
+}
+
+/* Range sliders */
+.range-input {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 9999px;
+  background: hsl(var(--input));
+  cursor: pointer;
+}
+.range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: hsl(var(--primary));
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  cursor: pointer;
+}
+.range-input::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-radius: 9999px;
+  background: hsl(var(--primary));
+  cursor: pointer;
+}
+
+/* TipTap editor content */
+.rt-content {
+  outline: none;
+}
+.rt-content p {
+  margin: 0 0 0.25em;
+}
+.rt-content p:last-child {
+  margin-bottom: 0;
+}
+.rt-content ul,
+.rt-content ol {
+  margin: 0.25em 0;
+  padding-left: 1.25em;
+}
+.rt-content ul {
+  list-style: disc;
+}
+.rt-content ol {
+  list-style: decimal;
+}
+.rt-content a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+.rt-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: hsl(var(--muted-foreground) / 0.7);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .canvas-bg {
+    background-color: hsl(var(--canvas));
+    background-image: radial-gradient(hsl(var(--foreground) / 0.06) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .drag-none {
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+}
+
+
+/* template hover flyout — quick, quiet scale-in */
+@keyframes zoom-pop {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+.zoom-pop { animation: zoom-pop 0.15s ease-out; }
+
+
+
+/* Landing: scroll-driven section reveals (CSS-only; static where unsupported). */
+@supports (animation-timeline: view()) {
+  .land-reveal {
+    animation: land-rise both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 55%;
+    /* Its own layer, so the scroll-driven opacity/transform runs on the
+       compositor instead of restyling a whole section every scroll frame -
+       measured: worst frame 250ms with five unlayered sections revealing. */
+    will-change: opacity, transform;
+  }
+  @keyframes land-rise {
+    from { opacity: 0.12; transform: translateY(30px); }
+    to { opacity: 1; transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .land-reveal { animation: none; }
+  }
+}
+
+/* The homepage's display voice: the face of Folio Noir, a Signature design,
+   so the site is typeset like the resumes it makes. Headings only; text
+   stays in the interface face. */
+.font-display {
+  font-family: 'Cormorant Garamond', 'Cormorant Fallback', Georgia, serif;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+/* The homepage shelf: a row that runs to the window's edges while its first
+   card (and every snap stop) lines up with the 72rem page column. */
+.shelf-track {
+  --shelf-inset: max(1rem, calc((100vw - 72rem) / 2 + 1.5rem));
+  padding-inline: var(--shelf-inset);
+  scroll-padding-inline: var(--shelf-inset);
+  scrollbar-width: none;
+}
+.shelf-track::-webkit-scrollbar {
+  display: none;
+}
+@media (max-width: 639px) {
+  .shelf-track { --shelf-inset: 1rem; }
+}
+

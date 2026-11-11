@@ -1,0 +1,307 @@
+/**
+ * One design, one URL (/templates/<id>).
+ *
+ * The gallery is a single page holding 58 designs, which is one page a search
+ * engine can rank for "resume template" and nothing it can rank for
+ * "Broadsheet resume template" — the phrase people actually type. This route
+ * gives every design a page of its own: its name as the heading, its full
+ * description, what it is good for, a preview big enough to judge, one button
+ * that starts a resume in it, and links onward to the designs nearest it.
+ *
+ * The head is set from the same `templatePageMeta` the build step writes into
+ * the pre-rendered file, so what a crawler is served and what a reader gets can
+ * never disagree (see src/lib/seoPages.ts and the SEO plugin in vite.config.ts).
+ */
+import { useEffect, useMemo } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { ArrowRight, ChevronRight, Wand2 } from 'lucide-react'
+import { CUSTOMIZE } from '@/data/customize'
+import { TEMPLATE_NOTES } from '@/data/templateNotes'
+// Written beside the images themselves, so the size in the markup is the size
+// of the file on disk and a page never reserves the wrong box for it.
+import { PAGE_IMAGE_WIDTH } from '@/data/pageImages'
+import { TEMPLATES, getTemplate, templatePath } from '@/templates/registry'
+import { SiteFooter, SiteHeader } from '@/components/site/SiteChrome'
+import { WriteYours } from '@/components/site/WriteYours'
+import { templateUseLabel, writeYoursTemplateLinks } from '@/data/pageLinks'
+import { EXAMPLES_BY_TEMPLATE } from '@/data/library/byTemplate'
+// The one code path that starts a resume and lands in the editor — the same
+// one the gallery card and the landing strip call, so a design started here is
+// a design started there.
+import { useResumeActions } from '@/components/dashboard/newResume'
+import { useSeo } from '@/lib/useSeo'
+import {
+  SITE,
+  breadcrumbJsonLd,
+  imageAlt,
+  isTemplateId,
+  relatedTemplateIds,
+  tagSentence,
+  templatePageImage,
+  templatePageImageHeight,
+  templatePageMeta,
+} from '@/lib/seoPages'
+
+
+export function TemplatePage() {
+  const { id: segment } = useParams<{ id: string }>()
+  // The address carries a design's public slug (templatePath), which is its
+  // id unless the design was renamed; an old id still finds its design.
+  const id = TEMPLATES.find((t) => t.slug === segment)?.id ?? segment
+  if (!isTemplateId(id)) return <UnknownDesign id={segment} />
+  // Keyed on the id so React rebuilds the page (and its preview) when a reader
+  // walks from one design to the next through the related row.
+  return <Design key={id} id={id} />
+}
+
+function Design({ id }: { id: string }) {
+  const tpl = getTemplate(id)
+  const meta = templatePageMeta(id)
+  const note = TEMPLATE_NOTES[id]
+  useSeo({
+    title: meta.title,
+    description: meta.description,
+    image: `${SITE}${meta.image}`,
+    url: `${SITE}${meta.path}`,
+  })
+  // A client-side navigation keeps the scroll position, and the related row
+  // sits near the bottom — without this, clicking a neighbour lands the reader
+  // in that page's footer.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [id])
+  // Breadcrumb rich result. A data block, not executable script, so it is
+  // welcome under the site's script-src 'self' policy.
+  // A pre-rendered page already carries the build's block (id
+  // "ld-breadcrumb"); reuse it rather than adding a second BreadcrumbList
+  // beside it. Once the app has booted this effect owns the block, so it
+  // goes on leaving the page with the page, whoever created it.
+  useEffect(() => {
+    const existing = document.getElementById('ld-breadcrumb') as HTMLScriptElement | null
+    const el = existing ?? document.createElement('script')
+    if (!existing) {
+      el.type = 'application/ld+json'
+      el.id = 'ld-breadcrumb'
+      document.head.appendChild(el)
+    }
+    el.textContent = breadcrumbJsonLd(id)
+    return () => el.remove()
+  }, [id])
+
+  const { create } = useResumeActions()
+
+  const related = useMemo(() => relatedTemplateIds(id).map((rid) => getTemplate(rid)), [id])
+  // the example resumes whose sample is set in this design (data/library)
+  const examples = EXAMPLES_BY_TEMPLATE[id] ?? []
+
+  return (
+    <div className="min-h-full bg-background">
+      <SiteHeader current="templates" />
+
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Link className="transition hover:text-foreground" to="/templates">
+            Templates
+          </Link>
+          <ChevronRight className="h-3 w-3 shrink-0" aria-hidden />
+          <span className="font-medium text-foreground" aria-current="page">
+            {tpl.name}
+          </span>
+        </nav>
+
+        {/*
+          The copy comes first in the DOM (its <h1> is the page's heading, and a
+          preview is a full resume render carrying headings of its own), and
+          `order` puts the preview on the left from the large breakpoint up.
+
+          grid-cols-1 is not decoration: without an explicit single-column track
+          the implicit one sizes to max-content, and a resume page's intrinsic
+          width is ~560px — which gave a 375px phone a 578px document and a
+          sideways scrollbar.
+        */}
+        <div className="mt-5 grid grid-cols-1 gap-8 lg:grid-cols-[560px_minmax(0,1fr)] lg:gap-12">
+          <div className="order-1 min-w-0 lg:order-2 lg:pt-2">
+            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{tpl.name} resume template</h1>
+            <p className="mt-1.5 text-sm font-medium text-primary">{tagSentence(tpl.tags)}</p>
+            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{tpl.description}</p>
+
+            {/* The button names the design (an anchor that says what it
+                starts), so it may wrap on a phone rather than overflow. */}
+            <button
+              className="btn-primary mt-6 h-auto min-h-[2.25rem] w-full whitespace-normal py-2 text-center sm:w-auto"
+              onClick={() => create(true, tpl.id)}
+            >
+              <Wand2 className="h-4 w-4 shrink-0" />
+              {templateUseLabel(tpl.name)}
+            </button>
+            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+              Opens the editor with an example resume in this design — replace the words with your own. Free, no
+              account, and everything stays in this browser.
+            </p>
+            {/* A visitor from a search judges the design by one picture; say
+                plainly, beside the button, that the colour, photo and columns
+                they may not like are all switches, before they leave for that
+                reason. Two sentences, not a list: the same list on every
+                design page was half of each page's text (data/customize). */}
+            <p className="mt-4 rounded-lg border border-primary/30 bg-primary/5 px-3.5 py-3 text-sm leading-relaxed text-foreground">
+              {CUSTOMIZE.switchLine} <span className="text-muted-foreground">{CUSTOMIZE.controls}</span>
+            </p>
+            <dl className="mt-7 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border pt-6 text-sm">
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Layout</dt>
+                <dd className="mt-0.5 font-medium">
+                  {tpl.defaults.layout.columns === 2 ? 'Two column' : 'Single column'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Photo</dt>
+                {/* Every design can carry a photo (Design → Show photo); some
+                    turn it on from the start. "No photo" read as "cannot". */}
+                <dd className="mt-0.5 font-medium">{tpl.defaults.layout.showPhoto ? 'On by default' : 'Optional'}</dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Exports</dt>
+                <dd className="mt-0.5 font-medium">PDF · Word · JSON</dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Price</dt>
+                <dd className="mt-0.5 font-medium">Free, open source (AGPL-3.0)</dd>
+              </div>
+            </dl>
+            <WriteYours className="mt-6 border-t border-border pt-5" links={writeYoursTemplateLinks()} />
+          </div>
+
+          <div className="order-2 min-w-0 lg:order-1">
+            {/* The design, as the picture the export actually produces.
+
+                The page image, not the share card and not a rendering.
+                /og/<id>.jpg is 1200x630 landscape - the resume inside it is
+                430x560, with body type about six pixels tall, which is a link
+                preview and not something anyone can read. This is the whole
+                page at 1200px wide, shown at about 560: finer than the
+                rendering that used to sit here, free of the render, and the
+                only thing on the page an image index can picture.
+
+                The height is read rather than assumed: A4 and US Letter give
+                different aspect ratios, so it is recorded per design when the
+                pictures are drawn. */}
+            <figure className="overflow-hidden rounded-xl border border-border bg-white shadow-card">
+              <img
+                src={templatePageImage(tpl.id)}
+                width={PAGE_IMAGE_WIDTH}
+                height={templatePageImageHeight(tpl.id)}
+                alt={imageAlt(tpl)}
+                className="block h-auto w-full"
+                loading="eager"
+                decoding="async"
+              />
+            </figure>
+            <p className="mt-2.5 text-center text-[11px] text-muted-foreground">
+              Shown on the same example resume every design in the gallery uses.
+            </p>
+          </div>
+        </div>
+
+        {/* What this design is for, in its own words (data/templateNotes) -
+            the part of the page no other design shares. */}
+        {note && (
+          <section className="mt-14 grid gap-8 border-t border-border pt-8 md:grid-cols-3">
+            <div>
+              <h2 className="text-base font-semibold tracking-tight">Who the {tpl.name} design suits</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{note.suits}</p>
+            </div>
+            <div>
+              <h2 className="text-base font-semibold tracking-tight">How the page is laid out</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{note.layout}</p>
+            </div>
+            <div>
+              <h2 className="text-base font-semibold tracking-tight">How it reads to an ATS</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{note.ats}</p>
+            </div>
+          </section>
+        )}
+
+        {/* The same list as the pre-rendered page: only when there is one. */}
+        {examples.length > 0 && (
+          <section className="mt-14 border-t border-border pt-8">
+            <h2 className="text-lg font-semibold tracking-tight">Resume examples set in the {tpl.name} design</h2>
+            <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              {examples.map((s) => (
+                <li key={s.slug}>
+                  <Link className="text-primary hover:underline" to={`/examples/${s.slug}`}>
+                    {s.role} resume example
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <section className="mt-14 border-t border-border pt-8">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 className="text-lg font-semibold tracking-tight">Related designs</h2>
+            <Link className="inline-flex items-center gap-1 text-sm text-primary hover:underline" to="/templates">
+              See all templates <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          <ul className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            {related.map((r) => (
+              <li key={r.id}>
+                <Link
+                  to={`${templatePath(r)}`}
+                  className="group block overflow-hidden rounded-lg border border-border bg-surface shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-card"
+                >
+                  <div data-nosnippet className="aspect-[210/297] overflow-hidden border-b border-border bg-white">
+                    <RelatedThumb id={r.id} />
+                  </div>
+                  <span className="block px-2 py-2 text-xs font-medium text-foreground group-hover:text-primary">
+                    {r.name}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </main>
+
+      <SiteFooter />
+    </div>
+  )
+}
+
+/** A neighbour's thumbnail: the design's page picture (the same 520px twin the
+ *  gallery uses). Six live renders here pulled in twenty font files and a
+ *  1.5s task on a phone, for cards a reader only glances at (measured
+ *  2026-11-07); the picture is the same page. */
+function RelatedThumb({ id }: { id: string }) {
+  return (
+    <img
+      src={`/img/templates/thumb/${id}.webp`}
+      alt=""
+      width={520}
+      height={735}
+      loading="lazy"
+      decoding="async"
+      className="block h-full w-full"
+    />
+  )
+}
+
+/** A /templates/<id> that names no design in the registry — a mistyped URL, or
+ *  a design that was renamed. Say so plainly and point at the gallery rather
+ *  than showing the app's "this part didn't load", which would blame the
+ *  network for a page that simply does not exist. */
+function UnknownDesign({ id }: { id?: string }) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+      <h1 className="text-lg font-semibold text-foreground">No design called “{id}”</h1>
+      <p className="max-w-sm text-sm text-muted-foreground">
+        That template link doesn’t match anything in the collection — it may have been renamed. Every design is on the
+        gallery page.
+      </p>
+      <Link className="btn-primary" to="/templates">
+        Browse all templates
+      </Link>
+    </div>
+  )
+}

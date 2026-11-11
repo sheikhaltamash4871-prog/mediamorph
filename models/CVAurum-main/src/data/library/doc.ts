@@ -1,0 +1,31 @@
+import { createDocument } from '@/data/defaults'
+import { applyTemplateToMetadata } from '@/lib/templateApply'
+import { getTemplate } from '@/templates/registry'
+import type { ResumeDocument } from '@/types/document'
+import type { LibrarySample } from './types'
+import { showcaseFor } from './showcase'
+
+/**
+ * The document a sample IS: its content in its own design, with whatever
+ * polish it asks for on top.
+ *
+ * One place builds it, so the thumbnail on the card, the full preview on the
+ * sample's own page and the resume a reader actually starts are the same
+ * document — a card that previewed something other than what "Use this
+ * example" produced would be the one bug this page cannot afford.
+ */
+export function sampleDoc(s: LibrarySample): ResumeDocument {
+  const doc = createDocument({ sample: true, content: s.content, title: `${s.role} resume` })
+  doc.metadata = applyTemplateToMetadata(doc.metadata, getTemplate(s.template).defaults)
+  s.tweaks?.(doc.metadata)
+  return doc
+}
+
+/** The style options a sample wears on top of its design, named for its
+ *  page ("Contact pills", "Skill chips"); empty for the design as it ships.
+ *  Read off the design's own metadata, the way the sample's tweaks pick it. */
+export function sampleStyle(s: LibrarySample): string[] {
+  const doc = createDocument({ sample: true, content: s.content })
+  const m = applyTemplateToMetadata(doc.metadata, getTemplate(s.template).defaults)
+  return showcaseFor(s.slug, m)?.labels ?? []
+}

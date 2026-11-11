@@ -1,0 +1,278 @@
+import { defaultMetadata } from '@/data/defaults'
+import { getTemplate } from '@/templates/registry'
+import type { Metadata } from '@/types/metadata'
+import type { TemplateDefaults } from '@/types/template'
+
+/**
+ * Produce new metadata when switching to a template. Adopts the template's look
+ * (theme, typography, spacing, header/column model) while preserving the user's
+ * content decisions (page format/margin, hidden sections, heading renames) and
+ * intelligently re-routing sections between main/aside when the column count
+ * changes — so picking a two-column template actually populates the sidebar, and
+ * picking a single-column one folds the sidebar back into the main flow.
+ */
+/**
+ * Which value survives a template switch for a field that has a real default.
+ *
+ * `cur` is the document's value, `fallback` the schema's default, `next` the
+ * incoming template's. A document still sitting on the default never made a
+ * choice, so the template's value wins; anything else is the author's and
+ * stays. (Fields that are OPTIONAL - the header composition, say - need none
+ * of this: undefined already means "no choice".)
+ */
+function chosen<T>(cur: T, fallback: T, next: T): T {
+  return cur === fallback ? next : cur
+}
+
+/**
+ * chosen() over every plain value of a settings group: what the author set
+ * travels, what the previous design shipped gives way to the next design's.
+ * The rule already held for a handful of fields while the rest fell to one of
+ * two spreads - font size, spacing and the accent were reset on every switch,
+ * and the previous design's contact style, link style and icons followed the
+ * author into the next (2026-10-24). Lists and nested objects are structure,
+ * not style: they keep the document's, and the lines below say otherwise
+ * where a group needs it.
+ */
+function chosenAll<T extends object>(cur: T, prev: T, next: T, base: T): T {
+  const out: Record<string, unknown> = { ...(next as Record<string, unknown>), ...(cur as Record<string, unknown>) }
+  const c = cur as Record<string, unknown>
+  const p = prev as Record<string, unknown>
+  const n = next as Record<string, unknown>
+  const b = base as Record<string, unknown>
+  for (const k of new Set([...Object.keys(c), ...Object.keys(n)])) {
+    const v = c[k]
+    if (v !== null && typeof v === 'object') continue
+    // Still the schema's own value is no choice either: a blank resume
+    // carries the base text colour and an empty heading font, and read as
+    // choices they put dark body text on every dark design.
+    out[k] = v === b[k] ? n[k] : chosen(v, p[k], n[k])
+  }
+  return out as T
+}
+
+export function applyTemplateToMetadata(cur: Metadata, defaults: TemplateDefaults): Metadata {
+  const targetCols = defaults.layout.columns
+  let main = [...cur.layout.main]
+  let aside = [...cur.layout.aside]
+
+  if (targetCols === 2) {
+    if (aside.length === 0) {
+      // Seed columns from the template's defaults...
+      const seededMain = defaults.layout.main.length ? [...defaults.layout.main] : [...main]
+      const seededAside = [...defaults.layout.aside]
+      const present = new Set([...seededMain, ...seededAside])
+      // ...but preserve any keys the user already had that the defaults omit
+      // (custom-* sections, or standard sections not in the default order).
+      for (const k of [...cur.layout.main, ...cur.layout.aside]) {
+        if (!present.has(k)) {
+          seededMain.push(k)
+          present.add(k)
+        }
+      }
+      const asideSet = new Set(seededAside)
+      main = seededMain.filter((k) => !asideSet.has(k))
+      aside = seededAside
+    }
+  } else {
+    // Single column: fold sidebar back into the main flow.
+    main = [...main, ...aside]
+    aside = []
+  }
+
+  // The footer strip: the author's own once they have moved a section there,
+  // else the one the template ships (Marquee seats skills and languages in
+  // its strip), the way the art band and the photo light up only where
+  // nothing was decided.
+  // ...unless the strip is exactly the one the PREVIOUS template shipped:
+  // that was the template's, not the author's, and it must not follow the
+  // author into a design that has no strip (a two-column template that
+  // came after the poster kept the poster's skills strip, and printed the
+  // skills twice).
+  const prevFooter = (cur.template ? getTemplate(cur.template).defaults.layout.footer : []) ?? []
+  const footerIsPrev = cur.layout.footer.join('|') === prevFooter.join('|')
+  const footer = cur.layout.footer.length && !footerIsPrev ? cur.layout.footer : defaults.layout.footer
+
+  // Dedupe so no section can ever appear in both columns (guards against drift
+  // over a long chain of template switches). A section in the footer strip is
+  // the strip's alone, so a re-seeded body never lists it again.
+  const seen = new Set<string>(footer)
+  const dedupe = (arr: string[]) => arr.filter((k) => (seen.has(k) ? false : (seen.add(k), true)))
+  main = dedupe(main)
+  aside = dedupe(aside)
+
+  // What the document's previous template gave it, so a value that only
+  // came from that template is never mistaken for the author's own choice.
+  // An unknown or missing template id reads as the schema defaults.
+  // The schema's own answers, for the fields where "the author never chose"
+  // means "still on the default" rather than "unchanged from the previous
+  // template".
+  const BASE = defaultMetadata()
+  const prev = cur.template ? getTemplate(cur.template).defaults.layout : defaultMetadata().layout
+  const prevType = cur.template ? getTemplate(cur.template).defaults.typography : defaultMetadata().typography
+  const prevTheme = cur.template ? getTemplate(cur.template).defaults.theme : defaultMetadata().theme
+  const prevArt = prevTheme.artBand
+  // An element colour is the author's once chosen. One that still equals
+  // what the previous template shipped was that template's and stays with it:
+  // Schematic's navy heading colour, carried into Punch as a choice, set the
+  // titles navy on Punch's black bars, where they all but vanished.
+  const element = (key: 'name' | 'headline' | 'headings' | 'contacts' | 'links') => {
+    const mine = cur.theme[key]
+    return mine !== undefined && mine !== prevTheme[key] ? mine : defaults.theme[key]
+  }
+
+  return defaultMetadata({
+    template: defaults.template,
+    page: cur.page,
+    theme: {
+      ...chosenAll(cur.theme, prevTheme, defaults.theme, BASE.theme),
+      // A colour the author set on one element is theirs across a switch;
+      // one the template ships applies only where nothing was decided.
+      name: element('name'),
+      headline: element('headline'),
+      headings: element('headings'),
+      contacts: element('contacts'),
+      links: element('links'),
+      // The art band is the author's once chosen - but a band that merely
+      // came with the PREVIOUS template is that template's, and it must not
+      // follow the author into a design that never asked for it: Folio Noir's
+      // marble followed a switch into Chronicle and the name and the contacts
+      // were printed straight onto it (2026-09-08). Unchanged from what the
+      // previous template gave means the author never chose; the new
+      // template's own answer applies (none, for all but one).
+      artBand:
+        cur.theme.artBand !== 'none' && cur.theme.artBand !== prevArt ? cur.theme.artBand : defaults.theme.artBand,
+    },
+    // Adopt the template's typographic identity (fonts, sizes, spacing, case) but
+    // keep the user's cross-cutting style choices so a switch never silently
+    // resets them.
+    typography: {
+      ...chosenAll(cur.typography, prevType, defaults.typography, BASE.typography),
+      // The mark is the author's once chosen, like the structure below: a
+      // mark that only came with the previous design is that design's (Flare
+      // ships squares, Dossier a >), and the next design's own applies.
+      bulletStyle: chosen(cur.typography.bulletStyle, prevType.bulletStyle, defaults.typography.bulletStyle),
+      bulletIndent: cur.typography.bulletIndent,
+      bulletGap: cur.typography.bulletGap,
+      proficiency: cur.typography.proficiency,
+      bulletSize: cur.typography.bulletSize,
+      // How the prose is set is the author's call about their own words, so a
+      // document that HAS chosen keeps its choice across every switch - but a
+      // document still sitting on the schema's ragged right never chose, and
+      // a design whose whole identity is a justified measure has no other way
+      // to say so: the page is the only place `align` can be stated, and this
+      // line used to drop it on the floor for every template. Measured on the
+      // registry before the change: exactly one design states an alignment of
+      // its own, so nothing else on the page moves.
+      align: chosen(cur.typography.align, BASE.typography.align, defaults.typography.align),
+      // How far the section titles, the headline and the contacts sit from
+      // the body, the heading case and the two weights are the author's too;
+      // an undecided case or weight stays undecided.
+      sectionTitleScale: cur.typography.sectionTitleScale,
+      headlineScale: cur.typography.headlineScale,
+      contactScale: cur.typography.contactScale,
+      headingCase: cur.typography.headingCase,
+      nameWeight: cur.typography.nameWeight,
+      // Optional, so the document CAN say "no choice" with undefined - and
+      // where it does, the template's own applies, exactly as an unset
+      // element colour takes the template's above. A weight the author set
+      // still beats it. (One design states a heading weight: a page whose
+      // headings differ from the body by case and a rule alone, where a bold
+      // title would be a different design.)
+      headingWeight: cur.typography.headingWeight ?? defaults.typography.headingWeight,
+      // The document-wide heading treatment is the author's the same way the
+      // case and the weights are: an author who set every section title to a
+      // filled block meant the resume, not the design they had at the time.
+      // Undecided stays undecided, and the new template's own stands.
+      headingStyle: cur.typography.headingStyle,
+      // The air under a heading and the weight of its rule stay too; an
+      // undecided rule width stays undecided.
+      headingGap: cur.typography.headingGap,
+      headingRuleWidth: cur.typography.headingRuleWidth,
+    },
+    layout: {
+      ...chosenAll(cur.layout, prev, defaults.layout, BASE.layout),
+      columns: targetCols,
+      // Preserve the user's photo intent across template switches: keep it shown
+      // if they enabled it, but let a photo-oriented template light it up by
+      // default. Keep their chosen shape/size unless they had no photo before.
+      showPhoto: cur.layout.showPhoto || defaults.layout.showPhoto,
+      // Monogram is a template-identity choice (initials badge), so adopt it.
+      monogram: defaults.layout.monogram,
+      // A monogram defines its own badge shape; otherwise keep the user's photo shape.
+      photoShape: defaults.layout.monogram ? defaults.layout.photoShape : cur.layout.showPhoto ? cur.layout.photoShape : defaults.layout.photoShape,
+      photoSize: cur.layout.showPhoto ? cur.layout.photoSize : defaults.layout.photoSize,
+      main,
+      aside,
+      // preserve user choices (sectionSettings - every per-section choice,
+      // the entry order and emphasis included - rides the spread above):
+      hidden: cur.layout.hidden,
+      // Structural choices the author MADE stay when the template changes,
+      // like the column split and the header composition do. Every one of
+      // these fields has a real default rather than being optional, so the
+      // document cannot say "no choice" with undefined - and a value that
+      // merely came from the PREVIOUS template is not the author's either.
+      // Comparing against the schema default let a gutter template leave
+      // its gutter off ('none' won); comparing against it and nothing else
+      // then let that gutter follow the author into the next template,
+      // whose whole idea was a margin. So the comparison is against what
+      // the previous template gave the document: unchanged means the
+      // author never chose, and the new template applies.
+      // What sits between two contacts is one of these too: the design that
+      // runs its contact line as a single centred row of fields divided by a
+      // spaced dash cannot draw that row any other way, and the separator
+      // reached the document from nowhere else - the layout spread above is
+      // the DOCUMENT's, not the template's. One design states one today.
+      contactSeparator: chosen(cur.layout.contactSeparator, prev.contactSeparator, defaults.layout.contactSeparator),
+      metaColumn: chosen(cur.layout.metaColumn, prev.metaColumn, defaults.layout.metaColumn),
+      headingPlacement: chosen(cur.layout.headingPlacement, prev.headingPlacement, defaults.layout.headingPlacement),
+      sideHeadingStyle: chosen(cur.layout.sideHeadingStyle, prev.sideHeadingStyle, defaults.layout.sideHeadingStyle),
+      sectionFrame: chosen(cur.layout.sectionFrame, prev.sectionFrame, defaults.layout.sectionFrame),
+      footer,
+      // The two switches follow the same rule: what the previous template
+      // turned on is the previous template's, not the author's.
+      stats: chosen(cur.layout.stats, prev.stats, defaults.layout.stats),
+      sectionNumbers: chosen(cur.layout.sectionNumbers, prev.sectionNumbers, defaults.layout.sectionNumbers),
+      pageFoot: chosen(cur.layout.pageFoot, prev.pageFoot, defaults.layout.pageFoot),
+      pageFrame: chosen(cur.layout.pageFrame, prev.pageFrame, defaults.layout.pageFrame),
+      pageGrid: chosen(cur.layout.pageGrid, prev.pageGrid, defaults.layout.pageGrid),
+      // ...but the SHAPE of that numeral is not a structural choice at all,
+      // so it does not go through chosen(): it is the author's the way the
+      // heading style and the date format are, and it simply travels. Stated
+      // rather than left to the spread above because the line beside it is
+      // the opposite rule, and the two read as a pair: a design may decide
+      // whether to number, never in what figures.
+      sectionNumberStyle: cur.layout.sectionNumberStyle,
+      // The keyword separator and the section icon style are the document's
+      // house style (a new resume starts on middots and folio icons), not a
+      // design's: most designs never state either and only inherit the
+      // schema's older values, so they travel with the document unchanged.
+      keywordSeparator: cur.layout.keywordSeparator,
+      sectionIconStyle: cur.layout.sectionIconStyle,
+      sectionSettings: seedSectionSettings(defaults.layout.sectionSettings, cur.layout.sectionSettings),
+      headings: cur.layout.headings,
+    },
+    // Link settings are the author's, not the template's: display, the
+    // clickable switch, underlining and the tag style all used to reset on
+    // every switch because the rebuild had no slot for them.
+    links: cur.links,
+    // So is how dates read: the month style, the separator, the present
+    // word and the language belong to the document, not to its look.
+    dates: cur.dates,
+  })
+}
+
+type SectionSettings = NonNullable<Metadata['layout']['sectionSettings']>
+
+/**
+ * The per-section styles a template ships (Atlas draws its skills as rings),
+ * under the author's own: a setting the author chose for a section stays,
+ * one they left open takes the template's. A template that ships none
+ * leaves the author's untouched.
+ */
+function seedSectionSettings(tpl: SectionSettings | undefined, cur: SectionSettings | undefined): SectionSettings | undefined {
+  if (!tpl || Object.keys(tpl).length === 0) return cur
+  const out: SectionSettings = { ...(cur ?? {}) }
+  for (const [key, bag] of Object.entries(tpl)) out[key] = { ...bag, ...(out[key] ?? {}) }
+  return out
+}

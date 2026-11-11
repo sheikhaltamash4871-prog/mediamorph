@@ -1,0 +1,230 @@
+/**
+ * A guide (/free-resume-builder, /ats-resume-checker, /resume-builder-no-sign-up):
+ * one search question, answered on one page.
+ *
+ * The words live in src/data/guides.ts, not here, because the pre-rendered
+ * HTML, the Markdown twin and the structured data have to be the same text as
+ * this page. This file is only how a person reads it.
+ */
+import { useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { ArrowRight } from 'lucide-react'
+import { SiteFooter, SiteHeader } from '@/components/site/SiteChrome'
+import { AtsFileCheck } from '@/components/ats/AtsFileCheck'
+import { useSavedCount } from '@/components/site/HeaderActions'
+import { GUIDES, guideBySlug } from '@/data/guides'
+import { guideKind } from '@/data/guideHub'
+import { SHOWCASE_HEADING, SITE, guideByline, guidePageMeta, guideShowcase } from '@/lib/seoPages'
+import { useSeo } from '@/lib/useSeo'
+import { isExternal, linkParts } from '@/lib/inlineLinks'
+import { guideSections } from '@/data/guideData'
+import { TEMPLATE_COUNT } from '@/templates/registry'
+import { SAMPLE_COUNT } from '@/data/library/count'
+
+export function Guide() {
+  // The router lists each guide by its own path, so the path IS the slug.
+  const slug = useLocation().pathname.replace(/^\/+|\/+$/g, '')
+  const g = guideBySlug(slug)
+  const meta = guidePageMeta(g ? slug : GUIDES[0].slug)
+  useSeo({
+    title: meta.title,
+    description: meta.description,
+    image: `${SITE}${meta.image}`,
+    url: `${SITE}${meta.path}`,
+  })
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [slug])
+  const saved = useSavedCount()
+  if (!g) return null
+  const by = guideByline(g.slug)
+  const others = GUIDES.filter((x) => x.slug !== g.slug)
+
+  return (
+    <div className="min-h-full bg-background">
+      <SiteHeader
+        action={
+          // On a phone with saved resumes "My resumes" takes this place; the
+          // page repeats its own call to action under the heading.
+          <Link className={`btn-primary btn-sm${saved ? ' hidden sm:inline-flex' : ''}`} to={g.action.href}>
+            {g.action.label}
+          </Link>
+        }
+      />
+
+      <main className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-10">
+        <article className="max-w-3xl">
+          <nav aria-label="Breadcrumb" className="text-xs text-muted-foreground">
+            <Link className="hover:text-foreground" to="/">
+              CVAurum
+            </Link>{' '}
+            ›{' '}
+            {guideKind(g.slug) !== 'about' && (
+              <>
+                <Link className="hover:text-foreground" to="/guides">
+                  Guides
+                </Link>{' '}
+                ›{' '}
+              </>
+            )}
+            {g.short}
+          </nav>
+          <h1 className="mt-3 text-[1.6rem] font-semibold leading-[1.15] tracking-tight sm:text-[2.4rem] sm:leading-[1.12]">
+            {g.heading}
+          </h1>
+          {by && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              By{' '}
+              <a className="hover:text-foreground" href={by.authorUrl} target="_blank" rel="author noopener noreferrer">
+                {by.author}
+              </a>
+              {by.date && (
+                <>
+                  {' '}
+                  · Updated <time dateTime={by.date}>{by.label}</time>
+                </>
+              )}
+            </p>
+          )}
+          {g.intro.map((p, i) => (
+            <p key={i} className="mt-3 text-[15px] leading-relaxed text-foreground">
+              <Prose text={p} />
+            </p>
+          ))}
+          {g.tool === 'ats-check' ? (
+            <AtsFileCheck />
+          ) : (
+            <Link className="btn-primary mt-6" to={g.action.href}>
+              {g.action.label}
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </Link>
+          )}
+          {g.showcase && <Showcase slug={g.slug} />}
+
+          {guideSections(g).map((sec) => (
+            <section key={sec.heading} className="mt-10">
+              <h2 className="text-lg font-semibold tracking-tight sm:text-xl">{sec.heading}</h2>
+              {sec.paragraphs.map((p, i) => (
+                <p key={i} className="mt-2.5 text-[15px] leading-relaxed text-foreground">
+                  <Prose text={p} />
+                </p>
+              ))}
+              {sec.list && (
+                <ul className="mt-3 list-disc space-y-1.5 pl-5 text-[15px] leading-relaxed text-foreground marker:text-muted-foreground">
+                  {sec.list.map((li) => (
+                    <li key={li}>
+                      <Prose text={li} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          ))}
+
+          <section className="mt-10">
+            <h2 className="text-lg font-semibold tracking-tight sm:text-xl">Questions</h2>
+            <dl className="mt-3 divide-y divide-border rounded-2xl border border-border bg-surface">
+              {g.faq.map((f) => (
+                <div key={f.q} className="p-4">
+                  <dt className="text-[15px] font-medium">{f.q}</dt>
+                  <dd className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                    <Prose text={f.a} />
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <p className="mt-10 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+            <Link className="text-primary hover:underline" to="/templates">
+              Browse the {TEMPLATE_COUNT} resume templates
+            </Link>
+            <Link className="text-primary hover:underline" to="/examples">
+              Read {SAMPLE_COUNT} complete resume examples
+            </Link>
+            <Link className="text-primary hover:underline" to="/prompts">
+              Prompts for an AI assistant
+            </Link>
+            <Link className="text-primary hover:underline" to="/guides">
+              All guides
+            </Link>
+            {others.map((x) => (
+              <Link key={x.slug} className="text-primary hover:underline" to={`/${x.slug}`}>
+                {x.short}
+              </Link>
+            ))}
+          </p>
+        </article>
+      </main>
+
+      <SiteFooter />
+    </div>
+  )
+}
+
+/**
+ * A row of designs (Guide.showcase) under the call to action: the page about
+ * the builder shows some of what it builds. The cards are the designs' 520px
+ * page pictures, the same ones the related row on a design page loads, and
+ * the list is the one the pre-rendered page carries (guideShowcase).
+ */
+function Showcase({ slug }: { slug: string }) {
+  const cards = guideShowcase(slug)
+  return (
+    <section className="mt-10">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 className="text-lg font-semibold tracking-tight sm:text-xl">{SHOWCASE_HEADING}</h2>
+        <Link className="inline-flex items-center gap-1 text-sm text-primary hover:underline" to="/templates">
+          See all {TEMPLATE_COUNT} templates <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+        </Link>
+      </div>
+      <ul className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-6">
+        {cards.map((c) => (
+          <li key={c.id}>
+            <Link
+              to={c.path}
+              className="group block overflow-hidden rounded-lg border border-border bg-surface shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-card"
+            >
+              <div data-nosnippet className="aspect-[210/297] overflow-hidden border-b border-border bg-white">
+                <img
+                  src={c.thumb}
+                  alt=""
+                  width={c.width}
+                  height={c.height}
+                  loading="lazy"
+                  decoding="async"
+                  className="block h-full w-full"
+                />
+              </div>
+              <span className="block px-2 py-1.5 text-xs font-medium text-foreground group-hover:text-primary">
+                {c.name}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/** A guide's sentence with its `[label](/path)` links (lib/inlineLinks). */
+function Prose({ text }: { text: string }) {
+  return (
+    <>
+      {linkParts(text).map((p, i) => {
+        if (typeof p === 'string') return p
+        const cls = 'text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary'
+        // the project's own repository leaves the app; every other link is a route
+        return isExternal(p.href) ? (
+          <a key={i} className={cls} href={p.href} target="_blank" rel="noopener noreferrer">
+            {p.label}
+          </a>
+        ) : (
+          <Link key={i} className={cls} to={p.href}>
+            {p.label}
+          </Link>
+        )
+      })}
+    </>
+  )
+}

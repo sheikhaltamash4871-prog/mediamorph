@@ -1,0 +1,227 @@
+/** Editor-only UI state (not persisted with the document). */
+import { create } from 'zustand'
+import type { FitResult } from '@/lib/fitReadout'
+import type { FitTrialFn, Suggestion } from '@/lib/fitSuggest'
+import type { ContrastGroup, ContrastReport } from '@/lib/a11y'
+import type { EmptySectionsPref } from '@/lib/sections'
+
+const EMPTY_KEY = 'cvaurum:empty-sections'
+function readEmptyPref(): EmptySectionsPref {
+  try {
+    const v = localStorage.getItem(EMPTY_KEY)
+    return v === 'show' || v === 'hide' ? v : 'auto'
+  } catch {
+    return 'auto'
+  }
+}
+
+/** The per-section visual style fields the style painter copies. */
+export type CopiedStyle = Record<string, string>
+
+export type LeftTab = 'content' | 'design' | 'templates' | 'ats'
+
+/** Keep a stepped zoom at two decimals — a fitted scale is a long fraction
+ *  (0.816429…), and 81.6429% would render as a jittery readout. */
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+interface EditorState {
+  leftTab: LeftTab
+  /** section currently expanded/being edited */
+  activeSection: string | null
+  /** preview zoom (1 = 100%) */
+  zoom: number
+  autoFit: boolean
+  /** the zoom the canvas is actually PAINTING at — `zoom`, or the fitted scale
+   *  while fit-to-width is on. Published by ResumePreview so the zoom controls
+   *  step from the size on screen rather than from an untouched `zoom`. */
+  canvasZoom: number
+  /** show the left panel (collapsible) */
+  leftOpen: boolean
+  /** highlight ATS missing keywords in the preview */
+  highlightKeywords: boolean
+  /** currently focused item id (for scroll-to in preview) */
+  focusItem: string | null
+  /** the live auto-fit-to-one-page scale the preview/PDF settled on (1 = none).
+   *  Mirrored here so silent exports (Word) can shrink to the same page count. */
+  onePageScale: number
+  /** What Magic fit did and how the pages came out, from the preview's own
+   *  measurement (src/lib/fitReadout.ts); null until the first fit. */
+  fitResult: FitResult | null
+  /** Measures a candidate document the way the preview measures the real
+   *  one (src/lib/fitSuggest.ts); the preview installs it while mounted. */
+  fitTrial: FitTrialFn | null
+  /** The moves Magic fit can offer for the current document, measured by
+   *  the preview after a fit that fell short or left a sparse last page. */
+  fitOffers: Suggestion[]
+  /** True while the preview is measuring candidate moves. */
+  fitSuggesting: boolean
+  /** Why the page target is out of reach, measured (fitSuggest explainShort):
+   *  the body the target would need, null when no size reaches it. */
+  fitShort: { pages: number; body: number | null; floor: number } | null
+  /** What every run of words on the page measures against what it stands on
+   *  (src/lib/a11y), read off the print tree the export is painted from once
+   *  the fit has settled, with its findings gathered by the setting that
+   *  answers for them; null until the first measure. */
+  contrast: { report: ContrastReport; groups: ContrastGroup[] } | null
+  /** show the resume as the plain text an ATS parser reads (instead of the canvas) */
+  atsView: boolean
+  /** render the canvas exactly as the exported PDF (no edit chrome/placeholders) */
+  previewExact: boolean
+  /** dim everything except the section under the cursor (zen editing) */
+  focusMode: boolean
+  /** Whether the editing canvas shows sections with nothing in them
+   *  (lib/sections emptySectionsShown); this browser's choice, not the
+   *  document's. */
+  emptySections: EmptySectionsPref
+  /** Sections added (or shown again) this session: kept on the canvas while
+   *  empty, whatever emptySections says, so they never vanish unfilled. */
+  freshSections: string[]
+  /** style painter clipboard — a section's visual style, ready to paint */
+  copiedStyle: CopiedStyle | null
+  /** recruiter skim heatmap overlay on the canvas */
+  skimView: boolean
+  /** true while a "Download PDF" export is in flight (top bar menu or the
+   *  command palette both go through this) — guards against a second click
+   *  firing a duplicate exportResumePdf/download while the first is still
+   *  running. */
+  pdfExporting: boolean
+
+  setLeftTab: (t: LeftTab) => void
+  setActiveSection: (s: string | null) => void
+  setZoom: (z: number) => void
+  setCanvasZoom: (v: number) => void
+  zoomIn: () => void
+  zoomOut: () => void
+  resetZoom: () => void
+  setAutoFit: (v: boolean) => void
+  toggleLeft: () => void
+  setLeftOpen: (v: boolean) => void
+  setHighlightKeywords: (v: boolean) => void
+  setFocusItem: (id: string | null) => void
+  setOnePageScale: (v: number) => void
+  setFitResult: (r: FitResult | null) => void
+  setFitTrial: (fn: FitTrialFn | null) => void
+  setFitOffers: (offers: Suggestion[]) => void
+  setFitSuggesting: (v: boolean) => void
+  setFitShort: (v: { pages: number; body: number | null; floor: number } | null) => void
+  setContrast: (r: { report: ContrastReport; groups: ContrastGroup[] } | null) => void
+  setAtsView: (v: boolean) => void
+  setPreviewExact: (v: boolean) => void
+  setFocusMode: (v: boolean) => void
+  setEmptySections: (v: EmptySectionsPref) => void
+  markFresh: (key: string) => void
+  setCopiedStyle: (v: CopiedStyle | null) => void
+  setSkimView: (v: boolean) => void
+  setPdfExporting: (v: boolean) => void
+}
+
+export const useEditorStore = create<EditorState>((set, get) => ({
+  leftTab: 'content',
+  activeSection: 'basics',
+  zoom: 1,
+  autoFit: true,
+  canvasZoom: 1,
+  leftOpen: true,
+  highlightKeywords: false,
+  focusItem: null,
+  onePageScale: 1,
+  fitResult: null,
+  fitTrial: null,
+  fitOffers: [],
+  fitSuggesting: false,
+  fitShort: null,
+  contrast: null,
+  atsView: false,
+  copiedStyle: null,
+  skimView: false,
+  previewExact: false,
+  focusMode: false,
+  emptySections: readEmptyPref(),
+  freshSections: [],
+  pdfExporting: false,
+
+  setLeftTab: (leftTab) => set({ leftTab }),
+  setActiveSection: (activeSection) => set({ activeSection }),
+  setZoom: (zoom) => set({ zoom: Math.min(3, Math.max(0.4, zoom)), autoFit: false }),
+  setCanvasZoom: (canvasZoom) => {
+    if (get().canvasZoom !== canvasZoom) set({ canvasZoom })
+  },
+  // Step from what is ON SCREEN, not from `zoom`: fit-to-width leaves `zoom`
+  // at its untouched 1 while the canvas paints at (say) 0.82, so stepping
+  // from `zoom` made the first "Zoom out" tap grow the sheet — and the first
+  // "Zoom in" jump straight to 110%.
+  zoomIn: () => set({ zoom: Math.min(3, round2(get().canvasZoom + 0.1)), autoFit: false }),
+  zoomOut: () => set({ zoom: Math.max(0.4, round2(get().canvasZoom - 0.1)), autoFit: false }),
+  resetZoom: () => set({ zoom: 1, autoFit: false }),
+  setAutoFit: (autoFit) => set({ autoFit }),
+  toggleLeft: () => set({ leftOpen: !get().leftOpen }),
+  setLeftOpen: (leftOpen) => set({ leftOpen }),
+  setHighlightKeywords: (highlightKeywords) => set({ highlightKeywords }),
+  setFocusItem: (focusItem) => set({ focusItem }),
+  // Written after every doc change by the auto-fit effect; when the value
+  // has not moved (almost always), writing it anyway told every subscriber
+  // something happened. Skip the no-op.
+  setOnePageScale: (onePageScale) => {
+    if (get().onePageScale !== onePageScale) set({ onePageScale })
+  },
+  setFitResult: (fitResult) => {
+    const cur = get().fitResult
+    if (
+      cur &&
+      fitResult &&
+      cur.pages === fitResult.pages &&
+      Math.abs(cur.lastPageFill - fitResult.lastPageFill) < 0.002 &&
+      cur.fit.type === fitResult.fit.type &&
+      cur.fit.space === fitResult.fit.space
+    )
+      return
+    set({ fitResult })
+  },
+  setFitTrial: (fitTrial) => set({ fitTrial }),
+  // Measured after every settled edit; a report that says the same thing as
+  // the last one is not news to the panels reading it.
+  setContrast: (contrast) => {
+    const cur = get().contrast?.report
+    const next = contrast?.report
+    if (
+      cur &&
+      next &&
+      cur.checked === next.checked &&
+      cur.unmeasured.length === next.unmeasured.length &&
+      cur.findings.length === next.findings.length &&
+      cur.findings.every((f, i) => f.id === next.findings[i].id && f.measured === next.findings[i].measured)
+    )
+      return
+    set({ contrast })
+  },
+  setFitOffers: (fitOffers) => {
+    const cur = get().fitOffers
+    if (cur.length === fitOffers.length && cur.every((o, i) => o.id === fitOffers[i].id && o.label === fitOffers[i].label)) return
+    set({ fitOffers })
+  },
+  setFitShort: (fitShort) => {
+    const cur = get().fitShort
+    if (cur === fitShort || (cur && fitShort && cur.pages === fitShort.pages && cur.body === fitShort.body && cur.floor === fitShort.floor)) return
+    set({ fitShort })
+  },
+  setFitSuggesting: (fitSuggesting) => {
+    if (get().fitSuggesting !== fitSuggesting) set({ fitSuggesting })
+  },
+  setAtsView: (atsView) => set({ atsView }),
+  setPreviewExact: (previewExact) => set({ previewExact }),
+  setFocusMode: (focusMode) => set({ focusMode }),
+  setEmptySections: (emptySections) => {
+    try {
+      localStorage.setItem(EMPTY_KEY, emptySections)
+    } catch {
+      /* private mode: the choice lasts this session */
+    }
+    set({ emptySections })
+  },
+  markFresh: (key) => {
+    if (!get().freshSections.includes(key)) set({ freshSections: [...get().freshSections, key] })
+  },
+  setCopiedStyle: (copiedStyle) => set({ copiedStyle }),
+  setSkimView: (skimView) => set({ skimView }),
+  setPdfExporting: (pdfExporting) => set({ pdfExporting }),
+}))

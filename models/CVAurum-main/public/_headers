@@ -1,0 +1,94 @@
+# Security headers for Cloudflare Pages (and Netlify) — applied to every route.
+# CSP also hard-enforces the privacy promise: connect-src 'self' means the app
+# can make NO external network requests, even if a future bug tried to.
+# Delivered as real HTTP headers so header-only directives (frame-ancestors)
+# take effect. The build ships no inline executable JS, so script-src 'self'
+# needs no 'unsafe-inline'; inline styles (boot splash + React style props) need
+# 'unsafe-inline' under style-src only.
+# Machine-reader discovery on the landing page (RFC 8288 / RFC 9727): the
+# API catalog (which says there is no API), the description, the Markdown
+# twin (the .md twins beside each page are always there).
+#
+# NO "Vary: Accept" on any page. It was sent for the host's Markdown-for-
+# agents switch (never turned on: Accept: text/markdown gets the HTML), and it
+# broke offline: the service worker looks a precached page up with the
+# browser's own request, whose Accept differs from the one the copy was
+# fetched with, so the lookup missed and /, /templates and /examples failed
+# with no connection (measured live, 2026-11-07). src/lib/offlineHeaders.test.ts
+# keeps it out. If that switch is ever turned on, the worker must be changed
+# to ignore Vary first.
+/
+  Link: </.well-known/api-catalog>; rel="api-catalog", </llms.txt>; rel="describedby"; type="text/plain", </index.md>; rel="alternate"; type="text/markdown"
+# The pictures of resumes: the full-size page images (/img/templates/<id>.webp,
+# /img/examples/<slug>.webp) and the share cards (/og/<id>.jpg,
+# /og/examples/<slug>.jpg). 350 files — 17.1 MB of page images plus the smaller
+# cards — regenerated only when a design or a sample is redrawn.
+#
+# Not `immutable`, deliberately. These URLs are addressed by the design's id or
+# the sample's slug, NOT by a hash of their bytes, so the same URL really does
+# serve different pixels after a design is retouched — and `immutable` tells a
+# browser not to revalidate even on a reload, which would strand a reader on
+# last year's picture for the whole max-age.
+#
+# A week fresh, then a month of stale-while-revalidate: a repeat visitor within
+# the week pays nothing; between day 7 and day 37 the cached copy is shown
+# instantly while the new one is fetched behind it, so a regenerated image
+# reaches everyone within one more page view rather than on a year's delay;
+# after that it is an ordinary conditional request. Crawlers and the link-
+# preview fetchers ignore stale-while-revalidate and simply honour the week.
+/img/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=2592000
+/og/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=2592000
+# The bundles under /assets/ carry a hash of their bytes in every name, so a
+# changed file is a new URL: cache them for a year and never revalidate. They
+# went out with max-age=0, so every page view re-asked for every script and
+# stylesheet (measured 2026-11-07).
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+# Fonts keep their names when regenerated (the marks font, the display faces),
+# so not immutable: a month fresh, then served stale while it revalidates.
+/fonts/*
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=2592000
+/fonts-pdf/*
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=2592000
+# Decorative backdrops: the same week-plus-revalidate as the page images.
+/art/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=2592000
+# Every Markdown file - the twins beside the public pages, SKILL.md, auth.md -
+# goes out as plain text. The host labels .md as text/markdown, and some
+# assistants' page readers refuse that type outright ("Unsupported
+# content-type: text/markdown"), so they could not read the very files written
+# for them. Plain text is what every reader accepts; the words are the same.
+# The charset is stated because the files carry non-ASCII letters (names in the samples, typographic quotes) and
+# a reader left to guess reads them as mojibake.
+# noindex: each twin repeats a page that is indexed in its own right, so in
+# search results it competed with that page (a template's .md showed up beside
+# the template). Readers that fetch the files directly are not affected.
+/*.md
+  Content-Type: text/plain; charset=utf-8
+  X-Robots-Tag: noindex
+/llms.txt
+  Content-Type: text/plain; charset=utf-8
+# llms-full.txt repeats the pages' own text for assistants; the pages are
+# what should be indexed, so it says noindex (crawled-not-indexed already).
+/llms-full.txt
+  Content-Type: text/plain; charset=utf-8
+  X-Robots-Tag: noindex
+# Discovery files for programs, not pages for people: noindex, so search
+# stops listing them as crawled-not-indexed pages (Search Console, 2026-11-09).
+/.well-known/*
+  X-Robots-Tag: noindex
+/.well-known/api-catalog
+  Content-Type: application/linkset+json
+/.well-known/agent-skills/index.json
+  Content-Type: application/json
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), interest-cohort=(), browsing-topics=()
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin

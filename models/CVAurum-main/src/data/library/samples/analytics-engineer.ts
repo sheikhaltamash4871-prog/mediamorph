@@ -1,0 +1,144 @@
+import type { LibrarySample } from '../types'
+import { content } from '../types'
+import { brandmark } from '../brandmark'
+
+/**
+ * Mid level, US. The analytics-engineering career as it usually happens:
+ * marketing reporting first, then product analytics, then owning the models
+ * everyone else queries. One of the three samples in this set that carries
+ * employer marks, and it carries one on every entry.
+ */
+export const sample: LibrarySample = {
+  slug: 'analytics-engineer',
+  role: 'Analytics Engineer',
+  category: 'data',
+  seniority: 'mid',
+  region: 'us',
+  template: 'margin',
+  blurb:
+    'Modern analytics stack work told in outcomes: 480 tested models, 38% less warehouse spend, one agreed definition of on-time.',
+  keywords: ['analytics engineer', 'dbt', 'Snowflake', 'data modeling', 'semantic layer', 'SQL', 'data warehouse'],
+  guide: {
+    why: [
+      'The scale of the work comes first: “480 models and 1,900 tests” and a full refresh in 22 minutes tell a data lead the size and health of the dbt project before any tool list does.',
+      'Cost is written in money as well as percent. Cutting warehouse spend 38%, “about $214,000 a year”, by re-clustering the four largest fact tables shows the engineering choice behind the saving.',
+      'The semantic-layer bullet names a business outcome, one definition of on-time delivery and “nine conflicting spreadsheets” retired, which is the part of analytics engineering hiring managers find hardest to test in interview.',
+      'The path from Marketing Analyst at Larkspur Media to Analytics Engineer at Fernwood Logistics is kept in order, so the move from reporting to owning models reads as a progression rather than a title change.',
+    ],
+    faq: [
+      { q: 'What skills should an analytics engineer resume list?', a: 'Group them: modeling (dbt, dimensional modeling, SQL), platform (Snowflake or BigQuery, Airflow, Fivetran), and analysis or BI tools (Looker, Tableau, Python). Then show the important ones in bullets, for example the size of the dbt project you run and how it is tested.' },
+      { q: 'Are dbt and Snowflake certifications worth adding to a resume?', a: 'They help when they back up experience already on the page. The dbt Analytics Engineering Certification and SnowPro Core are recognised by data teams, but list them in a certificates section below the work, not in place of bullets about real models.' },
+      { q: 'How is an analytics engineer resume different from a data analyst resume?', a: 'An analyst resume is judged on findings and decisions; an analytics engineer resume is judged on the models, tests and definitions other people rely on. Lead with what you built and keep running, its size, its reliability and its cost.' },
+    ],
+  },
+  content: content({
+    basics: {
+      name: 'Ruben Ortega',
+      label: 'Analytics Engineer',
+      image: '',
+      email: 'ruben.ortega@example.com',
+      phone: '+1 (555) 0126',
+      url: 'https://rubenortega.example.com',
+      summary:
+        'Analytics engineer with seven years turning operational data into models other teams trust without checking. Runs the 480-model dbt project behind shipment, billing and customer reporting at a logistics company, and cut warehouse spend 38% in the same year daily volume grew by half.',
+      location: { city: 'Chicago', region: 'IL', countryCode: 'US' },
+      profiles: [
+        { network: 'GitHub', username: 'rortega', url: 'https://github.com/rortega' },
+        { network: 'LinkedIn', username: 'rubenortega', url: 'https://linkedin.com/in/rubenortega' },
+      ],
+    },
+    work: [
+      {
+        id: 'w1',
+        name: 'Fernwood Logistics',
+        logo: brandmark('Fernwood Logistics'),
+        position: 'Analytics Engineer',
+        location: 'Chicago, IL',
+        url: '',
+        startDate: '2023-04',
+        endDate: '',
+        summary: 'Data team of seven. Owns the warehouse models behind shipment, billing and customer reporting.',
+        highlights: [
+          'Owns a dbt project of 480 models and 1,900 tests covering shipments, invoices and accounts; a full refresh runs in 22 minutes.',
+          'Cut warehouse spend 38%, about $214,000 a year, by re-clustering the four largest fact tables and moving 60 dashboards off raw event scans.',
+          'Introduced source contract tests, taking silent schema breaks from roughly two a month to none across the last three quarters.',
+          'Wrote the semantic layer that gave finance and operations one definition of on-time delivery, retiring nine conflicting spreadsheets.',
+          'Runs the weekly model review; time to add a governed metric fell from two days to two hours.',
+        ],
+      },
+      {
+        id: 'w2',
+        name: 'Cobalt Meadow Software',
+        logo: brandmark('Cobalt Meadow Software'),
+        position: 'Data Analyst',
+        location: 'Chicago, IL',
+        url: '',
+        startDate: '2021-01',
+        endDate: '2023-03',
+        summary: '',
+        highlights: [
+          'Modeled the subscription funnel end to end and showed that 31% of trials never reached the first integration step, which drove an onboarding rewrite.',
+          'Replaced 60 hand-maintained SQL views with a tested dbt project, ending a standing Monday ritual of patching broken reports.',
+          'Built the churn scorecard customer success still works from; accounts in its top decile churned at six times the base rate.',
+        ],
+      },
+      {
+        id: 'w3',
+        name: 'Larkspur Media',
+        logo: brandmark('Larkspur Media'),
+        position: 'Marketing Analyst',
+        location: 'Chicago, IL',
+        url: '',
+        startDate: '2019-07',
+        endDate: '2020-12',
+        summary: '',
+        highlights: [
+          'Automated weekly campaign reporting across six channels, returning about 15 hours a month to the media team.',
+          'Moved attribution from last click to a position-based model, reallocating $180,000 of quarterly spend toward two undercredited channels.',
+        ],
+      },
+    ],
+    education: [
+      {
+        id: 'e1',
+        institution: 'University of Illinois Urbana-Champaign',
+        area: 'Industrial Engineering',
+        studyType: 'B.S.',
+        location: 'Urbana, IL',
+        startDate: '2015-08',
+        endDate: '2019-05',
+        score: '3.5 GPA',
+        url: '',
+        summary: '',
+        courses: [],
+      },
+    ],
+    skills: [
+      {
+        id: 's1',
+        name: 'Modeling',
+        level: '',
+        keywords: ['dbt', 'Dimensional modeling', 'Semantic layers', 'Data contracts', 'SQL'],
+      },
+      {
+        id: 's2',
+        name: 'Platform',
+        level: '',
+        keywords: ['Snowflake', 'BigQuery', 'Airflow', 'Fivetran', 'Terraform', 'Git'],
+      },
+      { id: 's3', name: 'Analysis', level: '', keywords: ['Python', 'Looker', 'Tableau', 'Experiment design'] },
+      {
+        id: 's4',
+        name: 'Practice',
+        level: '',
+        keywords: ['Code review', 'Metric governance', 'Cost tuning', 'Documentation'],
+      },
+    ],
+    certificates: [
+      { id: 'c1', name: 'dbt Analytics Engineering Certification', date: '2024', issuer: 'dbt Labs', url: '' },
+      { id: 'c2', name: 'SnowPro Core Certification', date: '2023', issuer: 'Snowflake', url: '' },
+    ],
+  }),
+}
+
+export default sample

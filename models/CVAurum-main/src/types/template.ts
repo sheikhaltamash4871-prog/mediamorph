@@ -1,0 +1,105 @@
+/**
+ * Template contract.
+ *
+ * A template is mostly DATA: structural variant flags + a scoped CSS class +
+ * the theme/typography/layout defaults it ships with. The shared rendering
+ * engine (<Artboard>) reads these flags to lay out the resume, and the scoped
+ * CSS file (`.tpl-<id> { ... }`) gives each template its distinct look.
+ *
+ * This keeps the contribution barrier near-zero: a new template is
+ * a config object + a CSS file — no new React code, nothing that can break the
+ * type-check or the build.
+ */
+import type { ComponentType } from 'react'
+import type { Metadata } from './metadata'
+import type { ResumeDocument } from './document'
+
+export type RenderMode = 'preview' | 'print' | 'thumbnail'
+
+export interface TemplateProps {
+  doc: ResumeDocument
+  mode: RenderMode
+}
+
+export type TemplateTag =
+  /** Nothing on the page but type: no heading badge, employer mark, keyword
+   *  chip or level meter. The quiet end of the collection. */
+  | 'bare'
+  | 'ats-safe'
+  | 'single-column'
+  | 'two-column'
+  | 'modern'
+  | 'classic'
+  | 'creative'
+  | 'minimal'
+  | 'executive'
+  | 'technical'
+  | 'timeline'
+  | 'photo'
+  | 'compact'
+  | 'elegant'
+  | 'premium'
+  | 'signature' // the Signature collection: one column, one structural primitive each
+
+/** How the name/contact header is laid out. */
+export type HeaderVariant =
+  | 'standard' // name left, contacts under, optional photo right
+  | 'centered' // everything centered
+  | 'banner' // colored full-width band behind the header
+  | 'split' // name left / contacts right, divider rule
+  | 'compact' // single line name + inline contacts
+  | 'display' // the name set huge across the width, contacts as a byline between rules
+  | 'block' // the name fills a colour block in tall capitals
+  | 'band' // a two-stop gradient band carries the name, with a slot for the stats
+  | 'stepped' // three full-width bands in graded shades: name, role, contacts
+  | 'kicker' // a small decorative line over a large name: a label, and the city and year
+
+/** Section heading treatment. */
+export type SectionStyle =
+  | 'underline' // text + bottom rule (default)
+  | 'rule-after' // text then a full-width rule trailing
+  | 'bar' // left accent bar
+  | 'plain' // text only
+  | 'boxed' // filled/inverse heading
+  | 'side' // heading sits in a left gutter (modern)
+
+/** Skill rendering. */
+export type SkillStyle = 'inline' | 'chips' | 'bars' | 'dots' | 'grouped-chips'
+
+export interface TemplateConfig {
+  id: string
+  /** The page address when it differs from the id. The id is stored in
+   *  every resume that uses the design and never changes; a renamed design
+   *  takes a new public slug instead (templatePath). */
+  slug?: string
+  name: string
+  description: string
+  tags: TemplateTag[]
+  atsSafe: boolean
+  /** scoped CSS root class, e.g. 'tpl-modern' */
+  class: string
+  header: HeaderVariant
+  section: SectionStyle
+  skills: SkillStyle
+  /** show level meters for languages */
+  languageMeter?: boolean
+  /** show an icon chip beside each section title (premium look). Defaults on
+   *  for modern templates, off for traditional/minimal ones. */
+  sectionIcons?: boolean
+  /** Families the template's own stylesheet names outright - a meta line
+   *  set in a mono face whatever the body is. The export waits for them and
+   *  the offline warmer fetches them, like the document's own three faces. */
+  fonts?: string[]
+  /** The name is set several times the body, so the word-fit pass keeps its
+   *  longest word on one line (keywordFit.ts, `rm-fit-name`). The kicker
+   *  header always is. */
+  fitName?: boolean
+  /** the metadata this template applies when selected */
+  defaults: Pick<Metadata, 'theme' | 'typography' | 'layout'> & { template: string }
+  /** optional fully-custom component (rare; overrides the generic Artboard) */
+  Component?: ComponentType<TemplateProps>
+}
+
+export type TemplateDefaults = TemplateConfig['defaults']
+
+export type { Metadata, ResumeDocument }

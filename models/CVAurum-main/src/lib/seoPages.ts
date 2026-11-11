@@ -1,0 +1,1944 @@
+/**
+ * Everything the per-template pages need that is NOT React.
+ *
+ * A single-page app is invisible to anything that does not run JavaScript, and
+ * every design in the registry is something people search for by name — so each
+ * one gets its own URL (/templates/<id>), its own head, and a block of real HTML
+ * that a crawler reads straight out of the file. That HTML is produced here and
+ * written into dist/ at build time (see the plugin in vite.config.ts); the same
+ * metadata drives the live route's head at runtime. One source, two consumers,
+ * so the page a crawler is served and the page a reader gets can never disagree
+ * about their title, their description or their canonical URL.
+ *
+ * Kept pure and dependency-free on purpose: it is imported by a Node build step
+ * with no DOM and no browser, and it is the part worth unit-testing.
+ */
+import { TEMPLATES, TEMPLATE_MAP, galleryOrder, templatePath } from '@/templates/registry'
+import type { TemplateConfig, TemplateTag } from '@/types/template'
+import { htmlEscape } from '@/lib/utils'
+import { SITE as COPY } from '@/data/siteCopy'
+import { ResumeContentSchema } from '@/types/document'
+import { fitTitle, guideLinksHtml, guideLinksMarkdown, orderedSampleSlugs as librarySlugs, samplePageImage } from '@/lib/seoLibrary'
+import { SAMPLE_COUNT } from '@/data/library/count'
+import { PAGE_IMAGE_HEIGHT, PAGE_IMAGE_WIDTH } from '@/data/pageImages'
+import { PAGE_THUMB_WIDTH, pageThumbHeight } from '@/data/pageThumbs'
+import LASTMOD from '@/data/lastmod.json'
+import { EXAMPLES_BY_TEMPLATE } from '@/data/library/byTemplate'
+import { TEMPLATE_NOTES } from '@/data/templateNotes'
+import { pageDates } from './seoDates'
+import { linkHtml, linkMarkdown, linkText } from './inlineLinks'
+import { guideSections } from '@/data/guideData'
+import { GUIDES, SHOWCASE_TEMPLATE_IDS, guideBySlug, type Guide } from '@/data/guides'
+import { plainResume } from './searchSpelling'
+import { ABOUT_GUIDE, AUTHOR, GUIDE_GROUPS, GUIDES_HUB, guideKind } from '@/data/guideHub'
+import { ALL_GUIDES_LINK, templateUseLabel, writeYoursTemplateLinks } from '@/data/pageLinks'
+import { CUSTOMIZE } from '@/data/customize'
+import { FONTS } from '@/data/fonts'
+
+/**
+ * The example library's own pages, re-exported so the build step keeps loading
+ * ONE module. They live apart because they are a different collection with a
+ * different shape, and this file was already long.
+ */
+export {
+  EXAMPLES_INTRO,
+  TITLE_MAX,
+  examplesItemListJsonLd,
+  examplesJsonLd,
+  examplesMarkdown,
+  examplesPageMeta,
+  examplesStaticHtml,
+  fitTitle,
+  isSampleSlug,
+  orderedSampleSlugs,
+  sampleBreadcrumbJsonLd,
+  sampleImageAlt,
+  sampleMarkdown,
+  samplePageImage,
+  samplePageImageHeight,
+  samplePageMeta,
+  sampleShareCard,
+  sampleStaticHtml,
+} from '@/lib/seoLibrary'
+
+/** Canonical host. Also written in index.html, robots.txt and the sitemap. */
+export const SITE = 'https://cvaurum.com'
+
+/**
+ * How long a meta description may be. Google renders roughly 155-160
+ * characters of one on desktop and truncates the rest mid-word, so a
+ * description is cut here — on a word boundary — rather than by the search
+ * results page.
+ */
+export const DESC_MAX = 155
+
+/** The gallery's own order, so a template page's neighbour list and the
+ *  sitemap walk the collection the same way the wall of cards does. */
+const ORDERED = galleryOrder(TEMPLATES)
+
+/** The tag that marks the plainest layouts. It reads as a pass/fail verdict
+ *  next to the others ("this one is ATS-safe, so the rest are not"), which is
+ *  false of every design in the registry — the gallery leaves it off its
+ *  pills and so does every sentence built here. */
+const STRICT_TAG: TemplateTag = 'ats-safe'
+
+export interface PageMeta {
+  /** Route path, always absolute and without a trailing slash. */
+  path: string
+  title: string
+  /** At most DESC_MAX characters, cut on a word boundary. */
+  description: string
+  /** Site-root-relative path to the link-preview image. */
+  image: string
+}
+
+/** Is this a design the registry actually holds? Guards the route before any
+ *  of the builders below are asked for a page that cannot exist. */
+export function isTemplateId(id: string | undefined): id is string {
+  return !!id && Object.prototype.hasOwnProperty.call(TEMPLATE_MAP, id)
+}
+
+function must(id: string): TemplateConfig {
+  const tpl = TEMPLATE_MAP[id]
+  if (!tpl) throw new Error(`seoPages: no template named "${id}"`)
+  return tpl
+}
+
+/**
+ * Cut a sentence to `max` characters without cutting a word in half. Whatever
+ * punctuation the cut lands on is dropped so the ellipsis reads as a trail-off
+ * rather than as ",…" or ".…".
+ */
+export function trimToWords(text: string, max = DESC_MAX): string {
+  const clean = text.replace(/\s+/g, ' ').trim()
+  if (clean.length <= max) return clean
+  // -1 leaves room for the ellipsis, so the result is never longer than max.
+  const cut = clean.slice(0, max - 1)
+  const space = cut.lastIndexOf(' ')
+  const head = (space > 0 ? cut.slice(0, space) : cut).replace(/[\s,;:.…—–-]+$/, '')
+  return `${head}…`
+}
+
+/** 'two-column' is a slug; a sentence says it in words. */
+export function tagLabel(tag: string): string {
+  const words = tag.replace(/-/g, ' ')
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+/** The design's style tags as one readable line: "Single column · Modern". */
+export function tagSentence(tags: readonly string[]): string {
+  return tags
+    .filter((t) => t !== STRICT_TAG)
+    .map(tagLabel)
+    .join(' · ')
+}
+
+/** The head a single template's page wants. */
+/** The words a design is searched by: its strongest style, then its layout
+ *  when it has two columns ("Technical Two-Column"). The registry's tags,
+ *  ranked from the most particular style to the most general. */
+const STYLE_ORDER: [TemplateTag, string][] = [
+  ['executive', 'Executive'],
+  ['technical', 'Technical'],
+  ['creative', 'Creative'],
+  ['minimal', 'Minimal'],
+  ['bare', 'Minimal'],
+  ['elegant', 'Elegant'],
+  ['classic', 'Classic'],
+  ['modern', 'Modern'],
+]
+export function templateKeyword(tpl: TemplateConfig): string {
+  const style = STYLE_ORDER.find(([tag]) => tpl.tags.includes(tag))?.[1] ?? 'Professional'
+  return tpl.tags.includes('two-column') ? `${style} Two-Column` : style
+}
+
+/** The style tags a description names, in the order it names them. */
+const STYLE_WORDS: readonly TemplateTag[] = ['modern', 'classic', 'elegant', 'executive', 'technical', 'creative', 'minimal', 'premium']
+
+/** "a", "a and b", "a, b and c". */
+function andList(words: readonly string[]): string {
+  if (words.length < 2) return words[0] ?? ''
+  return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
+}
+
+/**
+ * How the page is built, in words, from the design's own tags: its columns,
+ * what sits on it and its styles - "two columns with a photo; modern and
+ * premium in style". Facts the registry records, not the tagline's prose.
+ */
+export function templateStructure(tpl: TemplateConfig): string {
+  const has = (tag: TemplateTag) => tpl.tags.includes(tag)
+  const columns = has('two-column') ? 'two columns' : 'one column'
+  const base = has('signature') ? `a Signature page structure in ${columns}` : columns
+  const extras = [has('photo') && 'a photo', has('timeline') && 'a timeline of roles', has('compact') && 'compact spacing'].filter(
+    (x): x is string => !!x
+  )
+  const styles = STYLE_WORDS.filter(has)
+  return `${base}${extras.length ? ` with ${andList(extras)}` : ''}${has('bare') ? ', nothing on the page but type' : ''}${
+    styles.length ? `; ${andList(styles)} in style` : ''
+  }`
+}
+
+export function templatePageMeta(id: string): PageMeta {
+  const tpl = must(id)
+  return {
+    path: `${templatePath(tpl)}`,
+    // led by the style and layout people search, then the design's own name;
+    // the tail goes before the name is cut (fitTitle)
+    title: fitTitle(`${templateKeyword(tpl)} Resume Template: ${tpl.name}`),
+    // The design's facts, not its tagline: the tagline is a line of sales
+    // prose, and the same offer closing it on every page is the point.
+    description: plainResume(
+      trimToWords(`${templateKeyword(tpl)} resume template (${tpl.name}): ${templateStructure(tpl)}. Free PDF and Word download, no sign-up.`)
+    ),
+    image: `/og/${tpl.id}.jpg`,
+  }
+}
+
+/** The gallery's own head, built from the same registry count as its heading. */
+export function galleryPageMeta(): PageMeta {
+  return {
+    path: '/templates',
+    title: `All ${TEMPLATES.length} Resume Templates — Free & ATS-Ready · CVAurum`,
+    description: plainResume(trimToWords(GALLERY_DESCRIPTION)),
+    // The gallery's own card - a fan of real design pages with the count on
+    // it. It fell back to the site card, which shows one design and no count.
+    image: '/og/templates.jpg',
+  }
+}
+
+/** The gallery's visible intro sentence — kept here so the pre-rendered file
+ *  and the live page say the same thing. */
+export const GALLERY_INTRO =
+  'Every design is shown on the same example resume, so what changes between them is the layout and nothing else. Free, ATS-ready, and yours to edit in the browser.'
+
+/** The gallery's meta description: the count, the kinds of design a search
+ *  names, and the offer. */
+export const GALLERY_DESCRIPTION = `${TEMPLATES.length} free resume templates — simple, modern, two-column and creative — each on the same resume. PDF and Word download, no sign-up.`
+
+/**
+ * The gallery's designs by style, for the page a crawler reads: a heading per
+ * kind, each design under the first group whose tags it carries, in gallery
+ * order within it - so every design appears exactly once. The ItemList the
+ * page declares walks the same order (galleryJsonLd).
+ */
+const GALLERY_GROUPS: readonly { heading: string; tags: readonly TemplateTag[] }[] = [
+  { heading: 'Signature designs', tags: ['signature'] },
+  { heading: 'Two-column resume templates', tags: ['two-column'] },
+  { heading: 'Simple and minimal resume templates', tags: ['bare', 'minimal', 'compact'] },
+  { heading: 'Classic, elegant and executive resume templates', tags: ['classic', 'elegant', 'executive'] },
+  { heading: 'Technical resume templates', tags: ['technical'] },
+  { heading: 'Creative resume templates', tags: ['creative'] },
+  { heading: 'Modern resume templates', tags: ['modern'] },
+]
+
+export function galleryGroups(): { heading: string; designs: TemplateConfig[] }[] {
+  let left = [...ORDERED]
+  const out: { heading: string; designs: TemplateConfig[] }[] = []
+  for (const g of GALLERY_GROUPS) {
+    const designs = left.filter((t) => g.tags.some((tag) => t.tags.includes(tag)))
+    left = left.filter((t) => !designs.includes(t))
+    if (designs.length) out.push({ heading: g.heading, designs })
+  }
+  if (left.length) out.push({ heading: 'More resume templates', designs: left })
+  return out
+}
+
+/** The gallery's designs in the order its crawler-readable page shows them. */
+function galleryShown(): TemplateConfig[] {
+  return galleryGroups().flatMap((g) => g.designs)
+}
+
+/** How many neighbours a design page shows (the live page and the Markdown
+ *  twin), and the fewest design pages that must choose each design as one. */
+const RELATED_COUNT = 6
+const MIN_INBOUND = 3
+
+/** Every other design, closest first: most shared style tags, ties broken by
+ *  the gallery's order so the answer is stable between builds. */
+function rankedNeighbours(id: string): { id: string; shared: number }[] {
+  const mine = new Set(must(id).tags)
+  return ORDERED.map((t, i) => ({ id: t.id, shared: t.tags.filter((tag) => mine.has(tag)).length, i }))
+    .filter((t) => t.id !== id)
+    .sort((a, b) => b.shared - a.shared || a.i - b.i)
+    .map(({ id: other, shared }) => ({ id: other, shared }))
+}
+
+let balanced: Map<string, string[]> | null = null
+
+/**
+ * Each design's six neighbours, chosen so that every design is somebody's.
+ *
+ * Ranking by shared tags alone sent the slots to the same few designs, and
+ * left sixteen chosen by six pages or fewer in all (2026-11-09 audit). So the
+ * plain ranking is the start, and a design chosen by fewer than MIN_INBOUND
+ * pages then takes a slot on the page that loses the least relevance by
+ * giving it one: a page sharing a tag with it, in place of that page's least
+ * related neighbour among those other pages already choose often enough.
+ * Deterministic (gallery order breaks every tie), and computed once.
+ */
+function balancedNeighbours(): Map<string, string[]> {
+  if (balanced) return balanced
+  const ranked = new Map(ORDERED.map((t) => [t.id, rankedNeighbours(t.id)]))
+  const rank = new Map([...ranked].map(([id, list]) => [id, new Map(list.map((r, i) => [r.id, i]))]))
+  const shared = new Map([...ranked].map(([id, list]) => [id, new Map(list.map((r) => [r.id, r.shared]))]))
+  const picks = new Map([...ranked].map(([id, list]) => [id, list.slice(0, RELATED_COUNT).map((r) => r.id)]))
+  const inbound = new Map(ORDERED.map((t) => [t.id, 0]))
+  for (const list of picks.values()) for (const r of list) inbound.set(r, inbound.get(r)! + 1)
+
+  for (;;) {
+    const short = ORDERED.filter((t) => inbound.get(t.id)! < MIN_INBOUND).sort(
+      (a, b) => inbound.get(a.id)! - inbound.get(b.id)!
+    )[0]
+    if (!short) break
+    let best: { page: string; victim: string; key: [number, number] } | null = null
+    for (const [p, page] of ORDERED.entries()) {
+      const list = picks.get(page.id)!
+      const gain = shared.get(page.id)!.get(short.id) ?? 0
+      if (page.id === short.id || list.includes(short.id) || gain === 0) continue
+      // the least related neighbour this page can spare
+      const victim = [...list].reverse().find((v) => inbound.get(v)! > MIN_INBOUND)
+      if (!victim) continue
+      const key: [number, number] = [shared.get(page.id)!.get(victim)! - gain, p]
+      if (!best || key[0] < best.key[0] || (key[0] === best.key[0] && key[1] < best.key[1])) best = { page: page.id, victim, key }
+    }
+    if (!best) throw new Error(`seoPages: no design page can list "${short.id}" as related`)
+    const order = rank.get(best.page)!
+    const next = picks
+      .get(best.page)!
+      .map((r) => (r === best!.victim ? short.id : r))
+      .sort((a, b) => order.get(a)! - order.get(b)!)
+    picks.set(best.page, next)
+    inbound.set(best.victim, inbound.get(best.victim)! - 1)
+    inbound.set(short.id, inbound.get(short.id)! + 1)
+  }
+  balanced = picks
+  return picks
+}
+
+/**
+ * The designs closest to this one, closest first. The first six are the
+ * balanced choice above; a longer list (the pre-rendered page shows twelve)
+ * goes on down the plain ranking.
+ */
+export function relatedTemplateIds(id: string, limit = RELATED_COUNT): string[] {
+  must(id)
+  const base = balancedNeighbours().get(id)!
+  if (limit <= base.length) return base.slice(0, limit)
+  return [...base, ...rankedNeighbours(id).map((r) => r.id).filter((r) => !base.includes(r))].slice(0, limit)
+}
+
+/** One <li> per design, name and href, for the crawler's navigation block. */
+function linkList(list: readonly TemplateConfig[]): string {
+  return list
+    .map(
+      (t) =>
+        `      <li><a href="${templatePath(t)}">${htmlEscape(t.name)} resume template</a></li>`
+    )
+    .join('\n')
+}
+
+/* ------------------------------------------------------------- the pictures
+ * A design has two files, and they are not interchangeable:
+ *
+ *   /img/templates/<id>.webp   the page image — the whole resume at 1200 px
+ *                              wide, lossless WebP: under half the bytes of
+ *                              JPEG q82 for a page of text, and bit-exact
+ *                              (measured). This is what a reader looks at and
+ *                              what an image index crawls.
+ *   /og/<id>.jpg               the share card — 1200×630 JPEG, and og:image
+ *                              never points anywhere else: the big link-preview
+ *                              readers document JPG/PNG/GIF between them, and
+ *                              one has been measured failing on WebP.
+ *
+ * The page used to show the share card as its picture, so what a crawler
+ * indexed for a design was a cropped 630-pixel band of it, not the page.
+ */
+
+/** A4 at 1200 px wide, for a design whose entry the generated map is missing:
+ *  a width and a height that are nearly right beat no box at all. */
+const FALLBACK_HEIGHT = Math.round((PAGE_IMAGE_WIDTH * 297) / 210)
+
+/** The indexable picture of a resume in this design. */
+export function templatePageImage(id: string): string {
+  return `/img/templates/${id}.webp`
+}
+
+/** Its intrinsic height — A4 and US Letter are different shapes. */
+export function templatePageImageHeight(id: string): number {
+  return PAGE_IMAGE_HEIGHT[`templates/${id}`] ?? FALLBACK_HEIGHT
+}
+
+/**
+ * What the picture shows: a resume page set in this design, and what the
+ * design is — its style tags in words. Not the description, which is a
+ * paragraph of sales prose about the design rather than a description of the
+ * image, and reads as stuffing in an alt.
+ */
+export function imageAlt(tpl: TemplateConfig): string {
+  const tags = tagSentence(tpl.tags).toLowerCase()
+  return `A full resume page in the ${tpl.name} template${tags ? `: ${tags}` : ''}`
+}
+
+/** One picture per design, as real content: an image that lives only in
+ *  og:image is never indexed as an image, and Google's image documentation is
+ *  explicit that it does not index CSS images either. */
+function figure(tpl: TemplateConfig, eager: boolean): string {
+  return `<figure><img src="${templatePageImage(tpl.id)}" width="${PAGE_IMAGE_WIDTH}" height="${templatePageImageHeight(tpl.id)}" alt="${htmlEscape(imageAlt(tpl))}" loading="${eager ? 'eager' : 'lazy'}" decoding="async"><figcaption>${htmlEscape(tpl.name)}</figcaption></figure>`
+}
+
+function cardList(list: readonly TemplateConfig[]): string {
+  return list
+    .map((t) => `      <li>${figure(t, false)}<p><a href="${templatePath(t)}">${htmlEscape(t.name)} resume template</a> — ${htmlEscape(trimToWords(t.description, 120))}</p></li>`)
+    .join('\n')
+}
+
+/**
+ * The HTML a crawler reads for one template page WITHOUT running a line of
+ * JavaScript. It is injected inside <div id="root">, which React's createRoot
+ * empties the instant the app boots — so a reader never sees it and a crawler
+ * that renders the page sees the real one. Everything a search engine needs is
+ * here: the heading, the full description, what the design is good for, and a
+ * path onward to every other page in the set.
+ */
+export function staticHtml(id: string): string {
+  const tpl = must(id)
+  // Twelve related designs and the examples shown in this one, not a list of
+  // all 74 others: every design page carried the same 74 links, and with the
+  // shared paragraphs that made the pages about 91% the same text (2026-10-24
+  // audit). The gallery still links every design in one hop.
+  const related = relatedTemplateIds(id, 12).map((rid) => must(rid))
+  const inThisDesign = EXAMPLES_BY_TEMPLATE[id] ?? []
+  const note = TEMPLATE_NOTES[id]
+  return `<main class="seo-static">
+    <p><a href="/templates">Resume templates</a> › ${htmlEscape(tpl.name)}</p>
+    <h1>${htmlEscape(tpl.name)} resume template</h1>
+    ${figure(tpl, true)}
+    <p>${htmlEscape(tpl.description)}</p>
+${note ? `    <section>
+      <h2>Who the ${htmlEscape(tpl.name)} design suits</h2>
+      <p>${htmlEscape(note.suits)}</p>
+      <h2>How the page is laid out</h2>
+      <p>${htmlEscape(note.layout)}</p>
+      <h2>How it reads to an ATS</h2>
+      <p>${htmlEscape(note.ats)}</p>
+    </section>
+` : ''}    <p>Best for: ${htmlEscape(tagSentence(tpl.tags))}. Free to use, exports selectable text a resume parser can read, and edits entirely in your browser — no account and no upload.</p>
+    <p><strong>${htmlEscape(CUSTOMIZE.switchLine)}</strong> ${htmlEscape(CUSTOMIZE.controls)}</p>
+    <p><a href="/app">${htmlEscape(templateUseLabel(tpl.name))}</a> · <a href="/templates">Browse all ${TEMPLATES.length} resume templates</a> · <a href="/examples">See ${SAMPLE_COUNT} complete resume examples</a></p>
+    <p>${guideLinksHtml(writeYoursTemplateLinks())}</p>
+${inThisDesign.length ? `    <section>
+      <h2>Resume examples set in the ${htmlEscape(tpl.name)} design</h2>
+      <ul>
+${inThisDesign.map((s) => `        <li><a href="/examples/${s.slug}">${htmlEscape(s.role)} resume example</a></li>`).join('\n')}
+      </ul>
+    </section>
+` : ''}    <nav aria-label="Related resume templates">
+      <h2>Related designs</h2>
+      <ul>
+${linkList(related)}
+      </ul>
+      <p><a href="/templates">See all ${TEMPLATES.length} resume templates</a></p>
+    </nav>
+  </main>`
+}
+
+/** The same crawler-readable block for the gallery itself. */
+export function galleryStaticHtml(): string {
+  return `<main class="seo-static">
+    <p><a href="/">CVAurum</a> › Resume templates</p>
+    <h1>${TEMPLATES.length} resume templates, all free</h1>
+    <p>${htmlEscape(GALLERY_INTRO)}</p>
+    <p><a href="/app">Start a resume</a> · <a href="/examples">Read ${SAMPLE_COUNT} complete resume examples</a> · <a href="/prompts">${PROMPTS.length} prompts for an AI assistant</a> · <a href="${ALL_GUIDES_LINK.href}">${ALL_GUIDES_LINK.label}</a></p>
+    <nav aria-label="Every resume template">
+${galleryGroups()
+  .map((g) => `      <h2>${htmlEscape(g.heading)}</h2>\n      <ul class="seo-cards">\n${cardList(g.designs)}\n      </ul>`)
+  .join('\n')}
+    </nav>
+  </main>`
+}
+
+/* ------------------------------------------------------- markdown twins
+ * Each public page has a Markdown twin beside it (index.md, templates.md,
+ * templates/<id>.md), linked from the page as its text/markdown alternate
+ * and announced in the landing page's Link header. Same data as the HTML,
+ * so they cannot drift. (A Pages Function cannot negotiate for them: the
+ * host serves an existing file before a function runs, measured 2026-09-12;
+ * the host's own Markdown-for-agents switch does that at the edge.) */
+
+const SITE_LIMITS: readonly string[] = COPY.limits
+
+export function landingMarkdown(): string {
+  return llmsTxt()
+}
+
+export function galleryMarkdown(): string {
+  return `# ${TEMPLATES.length} resume templates, all free
+
+${GALLERY_INTRO}
+
+${ORDERED.map((t) => `- [${t.name}](${SITE}${templatePath(t)}) — ${trimToWords(t.description, 140)} (${tagSentence(t.tags)})`).join('\n')}
+
+Start a resume: ${SITE}/app · About CVAurum: ${SITE}/about
+`
+}
+
+/** The design's own notes (data/templateNotes) as Markdown sections. */
+function templateNoteMarkdown(tpl: TemplateConfig): string {
+  const n = TEMPLATE_NOTES[tpl.id]
+  if (!n) return ''
+  return `## Who the ${tpl.name} design suits
+
+${n.suits}
+
+## How the page is laid out
+
+${n.layout}
+
+## How it reads to an ATS
+
+${n.ats}
+
+`
+}
+
+/** The examples whose sample is set in this design, or nothing when none is. */
+function templateExamplesMarkdown(tpl: TemplateConfig): string {
+  const shown = EXAMPLES_BY_TEMPLATE[tpl.id] ?? []
+  if (!shown.length) return ''
+  return `## Resume examples set in the ${tpl.name} design
+
+${shown.map((s) => `- [${s.role} resume example](${SITE}/examples/${s.slug})`).join('\n')}
+
+`
+}
+
+export function templateMarkdown(id: string): string {
+  const tpl = must(id)
+  const related = relatedTemplateIds(id, 6).map((r) => must(r))
+  return `# ${tpl.name} resume template
+
+${tpl.description}
+
+![${imageAlt(tpl)}](${SITE}${templatePageImage(tpl.id)})
+
+- Best for: ${tagSentence(tpl.tags)}
+- Layout: ${tpl.defaults.layout.columns === 2 ? 'two column' : 'single column'}
+- Photo: ${tpl.defaults.layout.showPhoto ? 'on by default' : 'optional'}
+- Exports: PDF (vector, selectable text), Word, JSON Resume
+- Price: free, open source (AGPL-3.0); no account, nothing uploaded
+- Open in the editor: ${SITE}/app
+- ${guideLinksMarkdown(writeYoursTemplateLinks())}
+
+${CUSTOMIZE.switchLine} ${CUSTOMIZE.controls}
+
+${templateNoteMarkdown(tpl)}${templateExamplesMarkdown(tpl)}## Related designs
+
+${related.map((r) => `- [${r.name}](${SITE}${templatePath(r)}) — ${trimToWords(r.description, 120)}`).join('\n')}
+
+All ${TEMPLATES.length} designs: ${SITE}/templates
+`
+}
+
+/* ------------------------------------------------------- agent discovery
+ * What is TRUE of this site: no server, no API, no accounts. The documents
+ * below say so in the formats readers look for, rather than promising
+ * endpoints that do not exist. */
+
+/** RFC 9727 API catalog: the one "service" is the site itself, documented
+ *  by llms.txt; there is no API and no OpenAPI description to point at. */
+export function apiCatalogJson(): string {
+  return JSON.stringify(
+    {
+      linkset: [
+        {
+          anchor: `${SITE}/`,
+          'service-doc': [{ href: `${SITE}/llms.txt`, type: 'text/plain', title: 'CVAurum, described for machine readers' }],
+          'service-meta': [{ href: `${SITE}/llms-full.txt`, type: 'text/plain', title: 'The full description' }],
+          describedby: [{ href: `${SITE}/.well-known/agent-skills/index.json`, type: 'application/json' }],
+        },
+      ],
+      // Not part of the linkset: CVAurum has no HTTP API. Everything runs in
+      // the visitor's browser; there is nothing to call and no key to hold.
+      note: 'CVAurum has no HTTP API: the editor, the PDF engine and the storage run in the browser. The site itself is the service; llms.txt describes it.',
+    },
+    null,
+    2
+  )
+}
+
+/* ------------------------------------------------- the document's own shape
+ * An assistant asked to produce a resume file needs the field names, and a
+ * prompt that spells them out in prose is a copy of the schema that nobody
+ * will remember to update. So the list below is READ OUT OF THE ZOD SCHEMAS
+ * the importer actually validates against (src/types/resume.ts via
+ * ResumeContentSchema): rename a field there and this text renames with it.
+ * It is published inside SKILL.md, which every prompt on /prompts points at.
+ */
+
+/** Peel ZodOptional / ZodDefault / ZodCatch / ZodEffects off a schema. */
+function unwrapSchema(schema: unknown): unknown {
+  let cur = schema as { _def?: { innerType?: unknown; schema?: unknown } } | undefined
+  while (cur?._def?.innerType || cur?._def?.schema) {
+    cur = (cur._def.innerType ?? cur._def.schema) as typeof cur
+  }
+  return cur
+}
+
+/** The element schema of an array, or null if it is not one. */
+function arrayElement(schema: unknown): unknown {
+  const inner = unwrapSchema(schema) as { _def?: { typeName?: string }; element?: unknown } | undefined
+  return inner?._def?.typeName === 'ZodArray' ? inner.element : null
+}
+
+/** The field map of an object schema, or null if it is not one. */
+function objectShape(schema: unknown): Record<string, unknown> | null {
+  const inner = unwrapSchema(schema) as { shape?: Record<string, unknown> } | undefined
+  return inner?.shape ?? null
+}
+
+interface ShapeLine {
+  /** 'work[]', 'basics.location' — how the path is written in a JSON file. */
+  path: string
+  fields: string[]
+}
+
+/** One line per object in the document, deepest nesting last. */
+function walkShape(schema: unknown, path: string, out: ShapeLine[], depth = 0): void {
+  if (depth > 3) return
+  const element = arrayElement(schema)
+  const shape = objectShape(element ?? schema)
+  if (!shape) return
+  const label = element ? `${path}[]` : path
+  out.push({ path: label, fields: Object.keys(shape) })
+  for (const [key, child] of Object.entries(shape)) {
+    if (objectShape(arrayElement(child) ?? child)) walkShape(child, `${label}.${key}`, out, depth + 1)
+  }
+}
+
+/** Every field the importer reads, as it is spelled in the file. */
+export function documentShape(): ShapeLine[] {
+  const out: ShapeLine[] = []
+  for (const [key, schema] of Object.entries(ResumeContentSchema.shape)) walkShape(schema, key, out)
+  return out
+}
+
+/** Its top-level keys — what a JSON Resume document's own top level holds. */
+export function documentSections(): string[] {
+  return Object.keys(ResumeContentSchema.shape)
+}
+
+export function documentShapeMarkdown(): string {
+  const lines = documentShape().map((s) => `- \`${s.path}\`: ${s.fields.join(', ')}`)
+  return `A CVAurum file IS a JSON Resume document: the content sits at the top level and CVAurum's own visual settings are namespaced under \`meta.cvaurum\`, which an assistant should leave out entirely — the app fills it in. Import is deliberately forgiving: a field it does not recognise, or one whose value is the wrong type, is dropped on its own; it never rejects the rest of the resume. So a plain JSON Resume document imports complete, and a near miss imports as most of a resume rather than as an error.
+
+Top level: ${documentSections().map((s) => `\`${s}\``).join(', ')}. All but \`custom\` are JSON Resume v1; \`custom\` is CVAurum's own, for material that belongs in no standard section. Every field is optional.
+
+${lines.join('\n')}
+
+Dates are strings: \`YYYY-MM-DD\`, \`YYYY-MM\` or \`YYYY\`. An empty \`endDate\` reads as "present". \`summary\` and each string in \`highlights\` may carry simple markup — \`strong\`, \`b\`, \`em\`, \`i\`, \`u\`, \`s\`, \`a\`, \`span\`, \`p\`, \`br\`, \`div\`, \`ul\`, \`ol\`, \`li\` — and anything outside that set is stripped before the page is drawn, so plain text is always safe. \`basics.image\` and any \`logo\` or \`logoExtras\` entry must be a \`data:image/…\` URL — a remote address is dropped on import, because the app makes no outbound request. These are CVAurum's additions to the standard sections and all are optional: \`id\`, \`logo\`, \`logoExtras\` (on work and education: up to two more logos shown beside \`logo\`, for a joint venture or a dual degree), \`badge\`, \`rail\`, \`rating\`, \`links\`, \`urlLabel\`, \`urlIcon\`, \`icon\`, and education's \`status\` and \`level\`.`
+}
+
+/** A skill file an assistant can load: how to help a person use CVAurum,
+ *  including the JSON Resume path in and out and the in-page WebMCP tools. */
+export function skillMd(): string {
+  return `---
+name: cvaurum
+description: Help a person build, tailor or export a resume with CVAurum (<${SITE}>), a free resume builder that runs entirely in the browser. Use when someone asks for a resume template, a PDF/Word resume, an ATS check, or wants to import or export JSON Resume.
+---
+
+# CVAurum
+
+${COPY.oneLiner}
+
+Everything runs in the visitor's browser: no account, no upload, no API. The whole application is open source: <${COPY.links.repo}>.
+
+## What you can do for a person
+
+1. **Pick a design.** ${TEMPLATES.length} templates, each on its own page: <${SITE}/templates> lists them, and a design's page is \`${SITE}/templates/{id}\`. Every page has a Markdown twin beside it: <${SITE}/templates.md> and \`${SITE}/templates/{id}.md\`, and the home page's is <${SITE}/index.md> (also answered for \`Accept: text/markdown\` where the host negotiates).
+2. **Start a resume.** <${SITE}/app> opens the editor; "Start with an example" offers six ready resumes. A template page's "Use the {name} resume template" button opens the editor in that design.
+3. **Bring content in.** The editor imports JSON Resume (<https://jsonresume.org/schema>) and text PDFs (Import in the editor). If you hold a person's resume as JSON Resume, hand them the file; the editor keeps it in their browser storage only.
+4. **Fit and export.** Magic fit (Design → Page) sizes type and spacing to a page target inside rules the person sets and says what it chose. Export gives a vector PDF (PDF/A-2B, PDF/UA-1), a Word file and JSON Resume.
+5. **Check for an ATS.** The ATS panel scores the resume, matches a job description's keywords and shows the plain text a parser reads.
+
+## The document shape
+
+Produce this and the person can import it. The field names below are read out of the schemas the importer validates against, so they cannot drift from the code.
+
+${documentShapeMarkdown()}
+
+Never invent an employer, a date, a qualification or a figure a person has not given you. An empty field is a question to ask them; a filled-in guess is something they have to defend in an interview.
+
+Ready-made prompts for the jobs people actually bring — notes into a resume, tailoring to a posting, rewriting bullets to name a number, writing a summary, starting from nothing — are at <${SITE}/prompts> (Markdown twin: <${SITE}/prompts.md>).
+
+## In the page (WebMCP)
+
+When the page is open in a browser that exposes \`navigator.modelContext\`, the app registers tools: \`list_resume_templates\`, \`open_resume_template\` (\`{ id }\`), \`create_resume_from_json_resume\` (\`{ jsonResume }\`) which saves a new resume in the browser and opens it. They act only in that browser.
+
+## Limits
+
+${SITE_LIMITS.map((l) => `- ${l}`).join('\n')}
+`
+}
+
+/** The skills index (Agent Skills Discovery 0.2.0). The digest is the
+ *  SHA-256 of the SKILL.md as written; the build computes it. */
+export function agentSkillsIndex(digestHex: string): string {
+  return JSON.stringify(
+    {
+      $schema: 'https://schemas.agentskills.io/discovery/0.2.0/schema.json',
+      skills: [
+        {
+          name: 'cvaurum',
+          type: 'skill-md',
+          description: `Help a person build, tailor or export a resume with CVAurum, a free resume builder that runs entirely in the browser (${TEMPLATES.length} templates, PDF/Word/JSON Resume, ATS checks).`,
+          url: `${SITE}/skills/cvaurum/SKILL.md`,
+          digest: `sha256:${digestHex}`,
+        },
+      ],
+    },
+    null,
+    2
+  )
+}
+
+/** auth.md, self-contained: there is nothing to authenticate or register. */
+export function authMd(): string {
+  return `# auth.md
+
+CVAurum (<${SITE}>) has no accounts, no API keys and no registration, for people or for agents. Everything runs in the visitor's browser and nothing is stored on a server, so there is no credential to obtain and nothing a credential would unlock.
+
+- Audience: any agent or person may read the public pages (/, /templates, /templates/<id>, /llms.txt) without identifying itself.
+- Registration: none exists. There is no endpoint to create an account or provision a credential.
+- Credentials: none are used. Requests need no header, token or cookie.
+- Authorization servers: none. No OAuth or OpenID Connect metadata is published because no such server exists.
+
+The app's own routes (/app, /tracker, /resume/<id>) are shells that render from the visitor's browser storage; they hold nothing an agent could fetch.
+`
+}
+
+/* ------------------------------------------------------- the prompt library
+ * /prompts. Someone who already talks to an assistant every day has their
+ * history in a chat window, not in a form — so the shortest path into this
+ * app is a prompt whose answer the app imports.
+ *
+ * The format is JSON Resume, which is what the app's own files already are
+ * (src/lib/io.ts), which is an open standard the large assistants already
+ * know, and whose import here drops a bad field rather than the file. The
+ * prompts therefore never describe the schema themselves: they point at
+ * SKILL.md, where the field list is generated from the Zod schemas above.
+ *
+ * Kept here rather than in the route so the page a person reads, the HTML a
+ * crawler is served and the Markdown twin are one text.
+ *
+ * NOT YET WIRED INTO THE BUILD. The SEO plugin names the pages it stamps out
+ * one by one, and it lives in vite.config.ts, which this change was not
+ * allowed to touch. Everything else already flows: sitemapXml() lists
+ * /prompts and llms.txt describes it (both verified in a real build). What is
+ * missing is the file itself — until these two lines join the others in
+ * seoPages()'s closeBundle, /prompts has no pre-rendered HTML and no
+ * Markdown twin, so the sitemap entry and the /prompts.md this file
+ * advertises both resolve to the host's 404 shell for anything that does not
+ * run JavaScript:
+ *
+ *     write('prompts', pageHtml(shell, seo.SITE, seo.promptsPageMeta(), seo.promptsStaticHtml()))
+ *     writeText('prompts.md', seo.promptsMarkdown())
+ *
+ * and, for the dev server to answer /prompts.md the way it answers
+ * /templates.md, one line in machineReadersDev's `files` map:
+ *
+ *     '/prompts.md': (seo) => seo.promptsMarkdown(),
+ */
+
+/** Where an assistant should read the field names. Generated, so a prompt
+ *  that sends someone here can never quote a field that no longer exists. */
+export const SCHEMA_DOC = `${SITE}/skills/cvaurum/SKILL.md`
+
+export interface PromptEntry {
+  /** URL fragment and React key. */
+  id: string
+  title: string
+  /** One line: when this is the prompt to reach for. */
+  when: string
+  /** The prompt itself, verbatim, as it is copied. */
+  prompt: string
+  /** What to do with what comes back. */
+  after: string
+}
+
+/**
+ * The one line the page leads with, and the head's description.
+ *
+ * It used to be four sentences, and on a phone it cost six lines of the first
+ * screen before a reader learned that there was anything to press. What a
+ * first-time visitor needs is the loop — copy, paste, paste back — and the
+ * rest (the format, the refusal to invent) is a sentence at the foot of the
+ * page, where someone who wants it will look.
+ */
+export const PROMPTS_INTRO =
+  'Copy a prompt, paste it into the assistant you already use, then paste the answer back here — it opens as a resume you can edit.'
+
+/** The same footnote on the page, in the crawler's HTML and in the Markdown
+ *  twin. One sentence, because the schema is not what anyone came for. */
+export const PROMPTS_SCHEMA_NOTE =
+  'Every prompt asks for JSON Resume, the open format this app reads and writes, and sends the assistant to the generated field list rather than letting it guess; none of them will invent a job, a date or a number you did not give it.'
+
+export const PROMPTS: readonly PromptEntry[] = [
+  {
+    id: 'notes-to-resume',
+    title: 'Turn what I already have into a resume file',
+    when: 'You have notes, an old resume or a job history in some other shape, and no wish to retype it.',
+    prompt: `I want to turn what I already have into a resume I can edit.
+
+Here is my raw material. It is unstructured and probably incomplete:
+
+<paste your notes, an old resume, a list of jobs — whatever you have>
+
+Produce one JSON Resume document from it. The exact field names are written out at ${SCHEMA_DOC} - read that rather than guessing, and do not use a field it does not list.
+
+Rules I care about:
+- Use only what is in my material. Do not invent an employer, a date, a qualification, a skill or a figure. If a date is missing, leave the field empty rather than guessing a year.
+- Keep my own wording wherever it already says something concrete. Fix grammar and tense. Do not inflate.
+- One job per entry in work, with name for the employer, position for my title, startDate and endDate as YYYY-MM (or YYYY if that is all I gave you), and one string in highlights per bullet.
+- If something in my material fits no standard section, put it in custom rather than dropping it.
+
+Reply with the JSON in a single fenced block. After it, list the fields you left empty because my material did not answer them — that list is what I need to go and find out.`,
+    after: 'Copy the JSON block and paste it below, or save it as a .json file and use Create resume → import a JSON Resume file. Anything the assistant got wrong is dropped field by field on import, so a near miss still arrives as most of a resume.',
+  },
+  {
+    id: 'tailor-to-a-job',
+    title: 'Tailor a resume I already have to one job description',
+    when: 'You have a resume that works and a posting you want it to answer, and you do not want the two to drift apart into a lie.',
+    prompt: `Here is my resume as a JSON Resume document:
+
+<paste the JSON Resume file this app exported>
+
+Here is the job description:
+
+<paste the posting>
+
+Rewrite the resume for this job without adding anything I have not done.
+
+- Reorder the highlights inside each work entry so the ones closest to the posting come first. Drop one only if it is genuinely irrelevant here, and tell me which you dropped.
+- Reword a highlight to use the posting's vocabulary only where my version already describes that same work. If the posting asks for something my history does not show, do not write a bullet for it — put it under "gaps" at the end instead.
+- Rewrite basics.summary to point at this role: three sentences, and no adjective I could not defend in an interview.
+- Reorder skills so the ones the posting names come first. Do not add a skill I have not listed.
+- Leave every date, employer and job title exactly as it is.
+
+Return the whole edited document as JSON Resume, with the field names listed at ${SCHEMA_DOC} - then a short plain-prose list of what you reordered, what you reworded, what you dropped, and the gaps.`,
+    after: 'Import the JSON as a second resume and keep the original — a tailored copy per application is the point, and the gaps list is worth reading before the interview.',
+  },
+  {
+    id: 'bullets-with-numbers',
+    title: 'Rewrite weak bullets into ones that name a number',
+    when: 'Your bullets describe duties rather than results, and you know it.',
+    prompt: `Here are bullets from my resume, one per line:
+
+<paste your bullets>
+
+First, do not rewrite them yet. For each bullet, ask me the one question whose answer would turn it into a measurement — how many, how much, how often, how long, compared with what, for whom. Ask, then stop and wait. Do not guess a figure; a number I cannot stand behind is worse than no number.
+
+When I have answered, rewrite each bullet as: what I did, what changed because of it, and the figure that shows it. One sentence each, active voice, about twenty-five words at most. No "responsible for", no "helped to", no "successfully".
+
+Where I could not give you a figure, say so and rewrite that bullet to name the scope or the outcome instead.
+
+Return the finished bullets as a JSON array of strings, ready to drop into the highlights array of a JSON Resume entry.`,
+    after: 'Paste the strings straight into the bullets of the right entry in the editor — pasting several lines at once makes one bullet per line.',
+  },
+  {
+    id: 'write-a-summary',
+    title: 'Write the summary at the top',
+    when: 'The three lines under your name are the hardest three lines on the page, and you have rewritten them five times.',
+    prompt: `Here is my resume as a JSON Resume document:
+
+<paste the JSON Resume file this app exported>
+
+If I am aiming at a particular job, here is the posting; if this line is still here, I am not:
+
+<paste the posting, or delete this line>
+
+Write me three different versions of basics.summary. Three sentences each. Never the word "I". Built only from what the resume already shows.
+
+- The first leads with what I do and how long I have done it.
+- The second leads with the single strongest thing in the resume.
+- The third leads with where I am going — but only if the resume makes that legible. If it does not, say so instead of inventing an ambition for me.
+
+Under each version, name the entries in the resume it rests on, so I can check it. If a version would need a claim the resume does not support, do not write it: tell me what I would have to add first.`,
+    after: 'Paste the one you believe into the summary field under your name. If none of the three is true, that is the useful answer.',
+  },
+  {
+    id: 'first-resume',
+    title: 'Draft a first resume from a job title',
+    when: 'You are starting out, the page is blank, and everything you have feels too thin to write down.',
+    prompt: `I am starting out and I do not have a resume yet.
+
+The job I want: <job title>, in <field, and the country I am applying in>.
+What I actually have: <a course, a part-time job, a project, a club, a certificate — list it however thin it looks>.
+
+Build me a JSON Resume document from what I just gave you and nothing else, using the field names at ${SCHEMA_DOC} - you may not invent an internship, an employer, a grade, a date or a skill. Where a section would be empty, leave it empty.
+
+Then, separately from the JSON, do the part that actually helps:
+- Tell me which sections a <job title> resume is read for, in the order a reader looks at them.
+- For each thing I listed, ask me the two or three questions that would turn it into a bullet worth reading.
+- Name what is genuinely missing — the kind of evidence this role expects and I do not yet have — and for each, one realistic way to get it in the next few months.
+
+I would rather have a short honest resume and a list of what to do next than a full page of things I did not do.`,
+    after: 'Import the JSON, then work through the questions it asked you and put your own answers in. A short resume that is true is a resume you can talk about.',
+  },
+  {
+    id: 'read-it-back',
+    title: 'Read my resume back to me the way a hiring manager would',
+    when: 'You have stared at it too long to see it, and you want to know what it says before someone else decides what it says.',
+    prompt: `Here is my resume as a JSON Resume document:
+
+<paste the JSON Resume file this app exported>
+
+I am applying for: <the role>.
+
+Do not rewrite it. Read it the way a hiring manager for that role would, in the thirty seconds they will actually give it, and tell me:
+
+- What they learn about me from the first six lines.
+- Which three entries carry the most weight, and which ones take up space without paying for it.
+- Every place I have described a duty rather than a result.
+- The questions they would be left with — the things the resume makes them wonder and does not answer.
+
+Then ask me those questions, one at a time, and wait for my answers. When we are through them, turn my answers into the bullets they belong in, in my own wording, using only what I told you.`,
+    after: 'This one changes nothing on its own. Take the bullets it ends with back into the editor, then run the ATS panel to see what a parser makes of the result.',
+  },
+]
+
+export function promptsPageMeta(): PageMeta {
+  return {
+    path: '/prompts',
+    title: `${PROMPTS.length} Resume Prompts for AI Assistants — Free · CVAurum`,
+    description: plainResume(trimToWords(PROMPTS_INTRO)),
+    image: '/og.png',
+  }
+}
+
+/** The HTML a crawler reads: every prompt in full, because the prompts ARE
+ *  the page's content — a list of titles would be nothing to rank and
+ *  nothing for an assistant to quote.
+ *
+ *  Same shape as the page a person gets: the one-line loop, the six titles as
+ *  a list, then the six prompts. The page opens one prompt at a time but
+ *  renders all six into the DOM, so this is not a second, fuller document —
+ *  it is the same one, unfolded. */
+export function promptsStaticHtml(): string {
+  const index = PROMPTS.map((p) => `      <li><a href="#${p.id}">${htmlEscape(p.title)}</a></li>`).join('\n')
+  const blocks = PROMPTS.map(
+    (p) => `    <section id="${p.id}">
+      <h2>${htmlEscape(p.title)}</h2>
+      <p>${htmlEscape(p.when)}</p>
+      <pre>${htmlEscape(p.prompt)}</pre>
+      <p>What to do with the answer: ${htmlEscape(p.after)}</p>
+    </section>`
+  ).join('\n')
+  return `<main class="seo-static">
+    <p><a href="/">CVAurum</a> › Resume prompts</p>
+    <h1>${PROMPTS.length} resume prompts for an AI assistant</h1>
+    <p>${htmlEscape(PROMPTS_INTRO)}</p>
+    <ol>
+${index}
+    </ol>
+${blocks}
+    <p>${htmlEscape(PROMPTS_SCHEMA_NOTE)} The field names are at <a href="/skills/cvaurum/SKILL.md">/skills/cvaurum/SKILL.md</a>, generated from the schemas the importer validates against, so they cannot drift from the code.</p>
+    <p><a href="/app">Import an answer and start editing</a> · <a href="/templates">Browse the ${TEMPLATES.length} resume templates</a> · <a href="/examples">Read ${SAMPLE_COUNT} complete examples</a> · <a href="${ALL_GUIDES_LINK.href}">${ALL_GUIDES_LINK.label}</a></p>
+  </main>`
+}
+
+export function promptsMarkdown(): string {
+  const index = PROMPTS.map((p, i) => `${i + 1}. ${p.title}`).join('\n')
+  const blocks = PROMPTS.map(
+    (p) => `## ${p.title}
+
+${p.when}
+
+\`\`\`
+${p.prompt}
+\`\`\`
+
+What to do with the answer: ${p.after}`
+  ).join('\n\n')
+  return `# ${PROMPTS.length} resume prompts for an AI assistant
+
+${PROMPTS_INTRO}
+
+${index}
+
+${PROMPTS_SCHEMA_NOTE} The field names, generated from the schemas the importer validates against, are at <${SCHEMA_DOC}>
+
+${blocks}
+
+Import an answer: ${SITE}/app · About CVAurum: ${SITE}/about
+`
+}
+
+/* ---- Guides (src/data/guides.ts) -------------------------------------
+   One search question per page. Every copy - this HTML, the Markdown twin,
+   the structured data and the page a person reads (src/routes/Guide.tsx) -
+   renders from the same entry, so they are one text. */
+
+function mustGuide(slug: string): Guide {
+  const g = guideBySlug(slug)
+  if (!g) throw new Error(`seoPages: no guide "${slug}"`)
+  return g
+}
+
+export function guideSlugs(): string[] {
+  return GUIDES.map((g) => g.slug)
+}
+
+export function guidePageMeta(slug: string): PageMeta {
+  const g = mustGuide(slug)
+  return { path: `/${g.slug}`, title: g.title, description: plainResume(trimToWords(g.description)), image: '/og.png' }
+}
+
+/** The other guides, as links: each page points at its siblings. */
+function guideSiblings(g: Guide): Guide[] {
+  return GUIDES.filter((x) => x.slug !== g.slug)
+}
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
+/** 2026-11-07 as "7 November 2026": spelled out, so no reader has to guess
+ *  which number is the month, and the same on every machine. */
+export function dayLabel(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return `${d} ${MONTHS[m - 1]} ${y}`
+}
+
+export interface GuideByline {
+  author: string
+  authorUrl: string
+  /** YYYY-MM-DD: the day the guide's sources last changed (src/data/lastmod.json). */
+  date?: string
+  /** The same day, written out. */
+  label?: string
+}
+
+/**
+ * Who wrote a writing guide and when it last changed, or null for a page that
+ * is not an article: the tool pages describe the app and /about describes the
+ * site, so a byline there would read as an article's.
+ */
+export function guideByline(slug: string): GuideByline | null {
+  if (guideKind(mustGuide(slug).slug) !== 'writing') return null
+  const date = lastmodEntry(`/${slug}`)?.lastmod
+  return { author: AUTHOR.name, authorUrl: AUTHOR.url, ...(date ? { date, label: dayLabel(date) } : {}) }
+}
+
+/** The trail a guide sits on: every guide under /guides, except About. */
+function guideTrail(g: Guide): { name: string; path: string }[] {
+  return guideKind(g.slug) === 'about'
+    ? [
+        { name: 'Home', path: '/' },
+        { name: g.short, path: `/${g.slug}` },
+      ]
+    : [
+        { name: 'Home', path: '/' },
+        { name: 'Guides', path: GUIDES_HUB.path },
+        { name: g.short, path: `/${g.slug}` },
+      ]
+}
+
+/** One design in a guide's showcase row: its page, its 520px picture and the
+ *  picture's own size. */
+export interface ShowcaseCard {
+  id: string
+  name: string
+  path: string
+  thumb: string
+  width: number
+  height: number
+  alt: string
+}
+
+/** The row's heading, with the count from the registry. */
+export const SHOWCASE_HEADING = `A few of the ${TEMPLATES.length} templates`
+
+/**
+ * The designs a guide shows (Guide.showcase), or none. The pages about the
+ * builder itself (/free-resume-builder, /resume-builder-no-sign-up) showed no
+ * design at all, and were the thinnest pages on the site (SEO audit,
+ * 2026-11-07). One list for the page a person reads (src/routes/Guide.tsx),
+ * the pre-rendered HTML and the Markdown twin.
+ */
+export function guideShowcase(slug: string): ShowcaseCard[] {
+  if (!mustGuide(slug).showcase) return []
+  return SHOWCASE_TEMPLATE_IDS.map((id) => {
+    const t = must(id)
+    return {
+      id,
+      name: t.name,
+      path: templatePath(t),
+      thumb: `/img/templates/thumb/${id}.webp`,
+      width: PAGE_THUMB_WIDTH,
+      height: pageThumbHeight(templatePageImageHeight(id)),
+      alt: imageAlt(t),
+    }
+  })
+}
+
+export function guideStaticHtml(slug: string): string {
+  const g = mustGuide(slug)
+  const esc = htmlEscape
+  const NL = '\n'
+  const cards = guideShowcase(slug)
+  const showcase = cards.length
+    ? `${NL}    <section>${NL}      <h2>${esc(SHOWCASE_HEADING)}</h2>${NL}      <ul class="seo-cards">${NL}${cards
+        .map(
+          (c) =>
+            `        <li><a href="${c.path}"><img src="${c.thumb}" width="${c.width}" height="${c.height}" alt="${esc(c.alt)}" loading="lazy" decoding="async">${esc(c.name)}</a></li>`
+        )
+        .join(NL)}${NL}      </ul>${NL}      <p><a href="/templates">See all ${TEMPLATES.length} templates</a></p>${NL}    </section>`
+    : ''
+  const sections = guideSections(g)
+    .map((sec) => {
+      const paras = sec.paragraphs.map((p) => `      <p>${linkHtml(p, esc)}</p>`).join(NL)
+      const list = sec.list
+        ? `${NL}      <ul>${NL}${sec.list.map((li) => `        <li>${linkHtml(li, esc)}</li>`).join(NL)}${NL}      </ul>`
+        : ''
+      return `    <section>${NL}      <h2>${esc(sec.heading)}</h2>${NL}${paras}${list}${NL}    </section>`
+    })
+    .join(NL)
+  const faq = g.faq.map((f) => `      <dt>${esc(f.q)}</dt>${NL}      <dd>${linkHtml(f.a, esc)}</dd>`).join(NL)
+  const intro = g.intro.map((p) => `    <p>${linkHtml(p, esc)}</p>`).join(NL)
+  const siblings = guideSiblings(g)
+    .map((x) => `<a href="/${x.slug}">${esc(x.short)}</a>`)
+    .join(' · ')
+  const trail = guideTrail(g)
+    .slice(0, -1)
+    .map((c) => `<a href="${c.path}">${c.path === '/' ? 'CVAurum' : esc(c.name)}</a> › `)
+    .join('')
+  const by = guideByline(slug)
+  const byline = by
+    ? `${NL}    <p class="byline">By <a href="${by.authorUrl}" rel="author">${esc(by.author)}</a>${by.date ? ` · Updated <time datetime="${by.date}">${by.label}</time>` : ''}</p>`
+    : ''
+  return `<main class="seo-static">
+    <p>${trail}${esc(g.short)}</p>
+    <h1>${esc(g.heading)}</h1>${byline}
+${intro}
+    <p><a href="${g.action.href}">${esc(g.action.label)}</a></p>${showcase}
+${sections}
+    <h2>Questions</h2>
+    <dl>
+${faq}
+    </dl>
+    <p><a href="/templates">Browse the ${TEMPLATES.length} resume templates</a> · <a href="/examples">Read ${SAMPLE_COUNT} complete resume examples</a> · <a href="/prompts">${PROMPTS.length} prompts for an AI assistant</a> · <a href="${GUIDES_HUB.path}">All guides</a> · ${siblings}</p>
+  </main>`
+}
+
+export function guideMarkdown(slug: string): string {
+  const g = mustGuide(slug)
+  const NL = '\n'
+  const PARA = '\n\n'
+  const sections = guideSections(g)
+    .map((sec) => {
+      const list = sec.list ? PARA + sec.list.map((li) => `- ${linkMarkdown(li, SITE)}`).join(NL) : ''
+      return `## ${sec.heading}${PARA}${sec.paragraphs.map((p) => linkMarkdown(p, SITE)).join(PARA)}${list}`
+    })
+    .join(PARA)
+  const faq = g.faq.map((f) => `**${f.q}**${PARA}${linkMarkdown(f.a, SITE)}`).join(PARA)
+  const by = guideByline(slug)
+  const byline = by ? `${PARA}By ${by.author}${by.label ? ` · Updated ${by.label}` : ''}` : ''
+  const cards = guideShowcase(slug)
+  const showcase = cards.length
+    ? `## ${SHOWCASE_HEADING}${PARA}${cards.map((c) => `- [${c.name}](${SITE}${c.path})`).join(NL)}${PARA}See all ${TEMPLATES.length} templates: ${SITE}/templates${PARA}`
+    : ''
+  return `# ${g.heading}${byline}
+
+${g.intro.map((p) => linkMarkdown(p, SITE)).join(PARA)}
+
+${g.action.label}: ${SITE}${g.action.href}
+
+${showcase}${sections}
+
+## Questions
+
+${faq}
+
+Templates: ${SITE}/templates · Examples: ${SITE}/examples · Prompts: ${SITE}/prompts · All guides: ${SITE}${GUIDES_HUB.path} · About CVAurum: ${SITE}/about
+`
+}
+
+const WEBSITE_REF = { '@type': 'WebSite', '@id': `${SITE}/#website`, url: `${SITE}/`, name: 'CVAurum' }
+const ORG_REF = { '@id': `${SITE}/#org` }
+
+/**
+ * The page, its trail and its questions as structured data.
+ *
+ * A writing guide is also an Article by its author, published by the site's
+ * organisation; both are referenced by the @ids the homepage declares, so the
+ * graph names one person and one organisation however many pages it spans.
+ * /about is an AboutPage whose subject is that organisation. A tool page stays
+ * a WebPage: it describes the app, it is not an article.
+ *
+ * FAQ answers are plain text: a guide writes its links as `[label](/path)`,
+ * and that Markdown went into acceptedAnswer verbatim.
+ */
+export function guideJsonLd(slug: string): string {
+  const g = mustGuide(slug)
+  const url = `${SITE}/${g.slug}`
+  const kind = guideKind(g.slug)
+  const description = trimToWords(g.description)
+  const page = {
+    '@type': kind === 'about' ? 'AboutPage' : 'WebPage',
+    '@id': url,
+    url,
+    ...pageDates(url),
+    name: g.heading,
+    description,
+    isPartOf: WEBSITE_REF,
+    ...(kind === 'about' ? { mainEntity: ORG_REF } : {}),
+  }
+  const article =
+    kind === 'writing'
+      ? [
+          {
+            '@type': 'Article',
+            '@id': `${url}#article`,
+            headline: g.heading,
+            description,
+            ...pageDates(url),
+            author: { '@type': 'Person', '@id': AUTHOR.id, name: AUTHOR.name, url: AUTHOR.url },
+            publisher: ORG_REF,
+            mainEntityOfPage: { '@id': url },
+            image: `${SITE}/og.png`,
+            inLanguage: 'en',
+          },
+        ]
+      : []
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      page,
+      ...article,
+      breadcrumbList(guideTrail(g)),
+      {
+        '@type': 'FAQPage',
+        mainEntity: g.faq.map((f) => ({
+          '@type': 'Question',
+          name: f.q,
+          acceptedAnswer: { '@type': 'Answer', text: linkText(f.a) },
+        })),
+      },
+    ],
+  })
+}
+
+/* ---- The guides hub (/guides, src/data/guideHub.ts) ------------------
+   Every guide on one page, grouped: the writing guides, then the tool pages,
+   then About on its own line. It is the page each guide's trail climbs to. */
+
+/** The guides the hub lists, in its order: writing guides, then the tools. */
+function hubGuides(): Guide[] {
+  return GUIDE_GROUPS.flatMap((grp) => grp.guides)
+}
+
+export function guidesHubPageMeta(): PageMeta {
+  return { path: GUIDES_HUB.path, title: GUIDES_HUB.title, description: plainResume(trimToWords(GUIDES_HUB.description)), image: '/og.png' }
+}
+
+export function guidesHubStaticHtml(): string {
+  const esc = htmlEscape
+  const groups = GUIDE_GROUPS.map(
+    (grp) => `    <section>
+      <h2>${esc(grp.heading)}</h2>
+      <ul>
+${grp.guides.map((g) => `        <li><a href="/${g.slug}">${esc(g.short)}</a> — ${esc(g.description)}</li>`).join('\n')}
+      </ul>
+    </section>`
+  ).join('\n')
+  const about = ABOUT_GUIDE ? `\n    <p><a href="/${ABOUT_GUIDE.slug}">About CVAurum</a> — ${esc(ABOUT_GUIDE.description)}</p>` : ''
+  return `<main class="seo-static">
+    <p><a href="/">CVAurum</a> › Guides</p>
+    <h1>${esc(GUIDES_HUB.heading)}</h1>
+    <p>${esc(GUIDES_HUB.intro)}</p>
+${groups}${about}
+    <p><a href="/templates">Browse the ${TEMPLATES.length} resume templates</a> · <a href="/examples">Read ${SAMPLE_COUNT} complete resume examples</a> · <a href="/prompts">${PROMPTS.length} prompts for an AI assistant</a></p>
+  </main>`
+}
+
+export function guidesHubMarkdown(): string {
+  const groups = GUIDE_GROUPS.map(
+    (grp) => `## ${grp.heading}
+
+${grp.guides.map((g) => `- [${g.short}](${SITE}/${g.slug}): ${g.description}`).join('\n')}`
+  ).join('\n\n')
+  const about = ABOUT_GUIDE ? `\n\n[About CVAurum](${SITE}/${ABOUT_GUIDE.slug}): ${ABOUT_GUIDE.description}` : ''
+  return `# ${GUIDES_HUB.heading}
+
+${GUIDES_HUB.intro}
+
+${groups}${about}
+
+Templates: ${SITE}/templates · Examples: ${SITE}/examples · Prompts: ${SITE}/prompts · About CVAurum: ${SITE}/about
+`
+}
+
+/** A collection, its trail and an ItemList of the guides, as the gallery declares itself. */
+export function guidesHubJsonLd(): string {
+  const url = `${SITE}${GUIDES_HUB.path}`
+  const list = hubGuides()
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'CollectionPage',
+        '@id': url,
+        url,
+        ...pageDates(url),
+        name: GUIDES_HUB.heading,
+        description: trimToWords(GUIDES_HUB.description),
+        isPartOf: WEBSITE_REF,
+      },
+      breadcrumbList([
+        { name: 'Home', path: '/' },
+        { name: 'Guides', path: GUIDES_HUB.path },
+      ]),
+      {
+        '@type': 'ItemList',
+        name: 'Resume guides',
+        numberOfItems: list.length,
+        itemListElement: list.map((g, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          name: g.short,
+          url: `${SITE}/${g.slug}`,
+        })),
+      },
+    ],
+  })
+}
+
+/**
+ * One <url>, with the pictures that page carries.
+ *
+ * `images` is a plain list of absolute URLs, not a list of designs: the
+ * library's pages have pictures too and could not be expressed at all while
+ * this took TemplateConfig. Only <image:loc> is emitted — Google has removed
+ * image:title, image:caption, image:geo_location and image:license from the
+ * sitemap image documentation, and an ignored tag is only bytes to parse.
+ */
+function urlEntry(loc: string, lastmod: string, changefreq: string, priority: string, images: readonly string[] = []): string {
+  const imgs = images
+    .map(
+      (src) => `
+    <image:image>
+      <image:loc>${src}</image:loc>
+    </image:image>`
+    )
+    .join('')
+  return `  <url>
+    <loc>${loc}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>${changefreq}</changefreq>
+    <priority>${priority}</priority>${imgs}
+  </url>`
+}
+
+/* ------------------------------------------------------------- lastmod
+ * A <lastmod> that reads as "today" on every deploy is a <lastmod> a crawler
+ * learns to ignore: it says the page changed when only the build did. So the
+ * date is not read from the clock here. src/data/lastmod.json holds, per
+ * public URL, a hash of the sources that page is made from and the day that
+ * hash last changed; scripts/make-lastmod.cjs updates it, and
+ * src/data/lastmod.test.ts fails the suite if a source moved without the
+ * script being run. See docs/SEO.md.
+ */
+
+export interface LastmodEntry {
+  /** Hash of the sources the page is built from — see src/lib/lastmodHash.ts. */
+  hash: string
+  /** YYYY-MM-DD: the day that hash last changed. */
+  lastmod: string
+}
+
+const LASTMOD_MAP = LASTMOD as Record<string, LastmodEntry>
+
+/** Every public URL as a site-root-relative path, in sitemap order. The one
+ *  list the sitemap, the lastmod file and the IndexNow submission all walk. */
+export function publicUrlPaths(): string[] {
+  return [
+    '/',
+    '/templates',
+    ...ORDERED.map((t) => `${templatePath(t)}`),
+    '/examples',
+    ...librarySlugs().map((slug) => `/examples/${slug}`),
+    '/prompts',
+    GUIDES_HUB.path,
+    ...GUIDES.map((g) => `/${g.slug}`),
+  ]
+}
+
+/** The same list as absolute URLs — what IndexNow and a sitemap want. */
+export function publicUrls(): string[] {
+  return publicUrlPaths().map((p) => `${SITE}${p}`)
+}
+
+/** What the file records for one page, or null if it has no entry yet. */
+export function lastmodEntry(path: string): LastmodEntry | null {
+  return LASTMOD_MAP[path] ?? null
+}
+
+/**
+ * The day this page's sources last changed. `fallback` is used only for a URL
+ * the file has no entry for — a page added since the script was last run,
+ * which the test catches before it can ship.
+ */
+export function lastmodFor(path: string, fallback: string): string {
+  return LASTMOD_MAP[path]?.lastmod ?? fallback
+}
+
+/**
+ * Every public URL the site has: the landing page, the gallery, and one entry
+ * per design. `today` is passed in (rather than read from the clock) so the
+ * function stays pure and the file it writes is reproducible; it is now only
+ * the fallback for a URL with no recorded lastmod.
+ */
+/**
+ * The sitemap: the landing page, the template gallery and one page per
+ * design, the example library and one page per sample, the prompt library and
+ * the guides. /app, /tracker, /resume/:id and /print/:id are private shells
+ * and are left out (and Disallowed in robots.txt). Each lastmod is the day
+ * THAT page's sources last changed (src/data/lastmod.json), not the build day.
+ *
+ * The file itself carries no comment: it is read by crawlers, and the long
+ * note that used to open it was noise a strict sitemap reader had no reason
+ * to see.
+ */
+export function sitemapXml(today: string): string {
+  // Absolute URLs, computed once: a collection page declares every picture it
+  // lists, a single page declares its own.
+  const designs = ORDERED.map((t) => `${SITE}${templatePageImage(t.id)}`)
+  const slugs = librarySlugs()
+  const samples = slugs.map((slug) => `${SITE}${samplePageImage(slug)}`)
+  const mod = (path: string) => lastmodFor(path, today)
+  const entries = [
+    urlEntry(`${SITE}/`, mod('/'), 'weekly', '1.0'),
+    urlEntry(`${SITE}/templates`, mod('/templates'), 'weekly', '0.8', designs),
+    ...ORDERED.map((t, i) => urlEntry(`${SITE}${templatePath(t)}`, mod(`${templatePath(t)}`), 'monthly', '0.6', [designs[i]])),
+    urlEntry(`${SITE}/examples`, mod('/examples'), 'weekly', '0.8', samples),
+    ...slugs.map((slug, i) => urlEntry(`${SITE}/examples/${slug}`, mod(`/examples/${slug}`), 'monthly', '0.6', [samples[i]])),
+    // A collection too, of prompts rather than designs; it carries no picture
+    // of its own, so it declares none.
+    urlEntry(`${SITE}/prompts`, mod('/prompts'), 'weekly', '0.8'),
+    // The hub that lists every guide: a collection of pages, like the two above.
+    urlEntry(`${SITE}${GUIDES_HUB.path}`, mod(GUIDES_HUB.path), 'monthly', '0.8'),
+    // The guides: one question each, answered in full. No picture of their own.
+    ...GUIDES.map((g) => urlEntry(`${SITE}/${g.slug}`, mod(`/${g.slug}`), 'monthly', '0.7')),
+  ]
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+${entries.join('\n')}
+</urlset>
+`
+}
+
+/**
+ * The structured data one template page carries: the trail back up, and which
+ * picture is the page's own. Data, never script.
+ *
+ * One @graph rather than two blocks, because the build and the live page write
+ * a single <script type="application/ld+json"> between them; primaryImageOfPage
+ * is how Google documents naming the image it should prefer for a page, which
+ * matters here because the page also lists every other design.
+ */
+export function breadcrumbJsonLd(id: string): string {
+  const tpl = must(id)
+  const url = `${SITE}${templatePath(tpl)}`
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebPage',
+        '@id': url,
+        url,
+        ...pageDates(url),
+        name: `${tpl.name} resume template`,
+        description: templatePageMeta(id).description,
+        isPartOf: { '@id': `${SITE}/#website` },
+        primaryImageOfPage: {
+          '@type': 'ImageObject',
+          contentUrl: `${SITE}${templatePageImage(tpl.id)}`,
+          width: PAGE_IMAGE_WIDTH,
+          height: templatePageImageHeight(tpl.id),
+          caption: imageAlt(tpl),
+        },
+      },
+      breadcrumbList([
+        { name: 'Home', path: '/' },
+        { name: 'Resume templates', path: '/templates' },
+        { name: `${tpl.name} resume template`, path: `${templatePath(tpl)}` },
+      ]),
+    ],
+  })
+}
+
+/**
+ * A crumb trail as schema.org writes one. Every public page gets the same
+ * shape, so a results page can show the path to it rather than a bare URL.
+ */
+export function breadcrumbList(trail: readonly { name: string; path: string }[]): Record<string, unknown> {
+  return {
+    '@type': 'BreadcrumbList',
+    itemListElement: trail.map((step, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: step.name,
+      item: `${SITE}${step.path}`,
+    })),
+  }
+}
+
+/**
+ * The gallery's own structured data.
+ *
+ * It had none: every design page declared its trail and its picture while the
+ * page that lists all 68 declared nothing at all, so the collection was 68
+ * unrelated documents to a results page. This says what the page is (a
+ * collection), how to walk back up, and — as an ItemList, the way the example
+ * shelf already does it — what is on it and which picture stands for each.
+ */
+export function galleryJsonLd(): string {
+  const url = `${SITE}/templates`
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'CollectionPage',
+        '@id': url,
+        url,
+        ...pageDates(url),
+        name: `${TEMPLATES.length} resume templates`,
+        description: trimToWords(GALLERY_DESCRIPTION),
+        isPartOf: { '@type': 'WebSite', '@id': `${SITE}/#website`, url: `${SITE}/`, name: 'CVAurum' },
+      },
+      breadcrumbList([
+        { name: 'Home', path: '/' },
+        { name: 'Resume templates', path: '/templates' },
+      ]),
+      {
+        '@type': 'ItemList',
+        name: 'Resume templates',
+        // the order the page's cards are in (galleryGroups)
+        numberOfItems: galleryShown().length,
+        itemListElement: galleryShown().map((t, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          name: `${t.name} resume template`,
+          url: `${SITE}${templatePath(t)}`,
+          image: `${SITE}${templatePageImage(t.id)}`,
+        })),
+      },
+    ],
+  })
+}
+
+/** The prompt library's, for the same reason: a collection of six documents
+ *  that said nothing about itself. No picture — the page carries none. */
+export function promptsJsonLd(): string {
+  const url = `${SITE}/prompts`
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'CollectionPage',
+        '@id': url,
+        url,
+        ...pageDates(url),
+        name: `${PROMPTS.length} resume prompts for an AI assistant`,
+        description: trimToWords(PROMPTS_INTRO),
+        isPartOf: { '@type': 'WebSite', '@id': `${SITE}/#website`, url: `${SITE}/`, name: 'CVAurum' },
+      },
+      breadcrumbList([
+        { name: 'Home', path: '/' },
+        { name: 'Resume prompts', path: '/prompts' },
+      ]),
+      {
+        '@type': 'ItemList',
+        name: 'Resume prompts',
+        numberOfItems: PROMPTS.length,
+        itemListElement: PROMPTS.map((p, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          name: p.title,
+          url: `${url}#${p.id}`,
+        })),
+      },
+    ],
+  })
+}
+
+/** Every id, in gallery order — what the build step iterates. */
+export function allTemplateIds(): string[] {
+  return ORDERED.map((t) => t.id)
+}
+
+/** Where a design's pre-rendered page is written, relative to the site
+ *  root: its public address (templatePath), never its stored id - a renamed
+ *  design's page must sit where every link and the sitemap send readers. */
+export function templatePageFile(id: string): string {
+  return templatePath(TEMPLATE_MAP[id]).slice(1)
+}
+
+/* ---- The landing page for whoever does not run scripts ------------------
+   An assistant asked to compare resume builders fetches https://cvaurum.com
+   and reads the HTML before any JavaScript runs. That HTML used to be the
+   head and an empty <div id="root">: nothing to quote, compare or rank. The
+   block below is written into dist/index.html's #root at build time (the
+   plugin in vite.config.ts); React empties it the moment the app boots, so
+   a person sees the page they always did. It renders from the same object
+   the page renders from (src/data/siteCopy.ts), so the two cannot drift. */
+
+/** The six designs whose structure is different, one sentence each. */
+const SIGNATURE_STRUCTURE: Record<string, string> = {
+  broadsheet:
+    'A front page: the name set huge in a display serif across the full width, a byline of contacts between double rules, and numbered running heads down one column.',
+  marquee:
+    'A poster: the name fills a colour block in tall condensed capitals, the body runs in one column beneath, and skills and languages live in a dark strip along the foot of the page.',
+  atlas:
+    'A dashboard: a navy-to-teal band carries the name, and beneath it a numbers band of figures the app reads out of the content itself (years, companies, projects, a headline figure), each tile editable.',
+  chronicle:
+    'A ledger: every entry hands its opening year to a tinted rail down the left, set in tall condensed numerals, while the entry keeps its own dates in a plain column beside them; any entry can set its own year and word.',
+  'folio-noir':
+    'A gallery wall: gold on near-black, a band of art behind the name, a hairline running out of every heading, and each entry’s dates and places set in a narrow margin down the right.',
+  terrace:
+    'Three steps of green carry the name, the role and the contacts across the top, and beneath them every section title sits in a column of its own, beside the words it labels.',
+}
+
+const SIGNATURE_IDS = ORDERED.filter((t) => t.tags.includes('signature')).map((t) => t.id)
+
+/** The comparison's third column. Its cells are questions to put to another
+ *  builder (siteCopy.ts), not claims about one, and the home page heads it so. */
+const COMPARISON_OTHERS = 'Ask of any other builder'
+
+function esc(s: string): string {
+  return htmlEscape(s).replace(/"/g, '&quot;')
+}
+
+export function landingStaticHtml(): string {
+  const steps = COPY.steps.map((s) => `        <li><strong>${esc(s.title)}.</strong> ${esc(s.body)}</li>`).join('\n')
+  const rows = COPY.comparison
+    .map((r) => `        <tr><th scope="row">${esc(r.capability)}</th><td>${esc(r.cvaurum)}</td><td>${esc(r.others)}</td></tr>`)
+    .join('\n')
+  const privacy = COPY.privacy.map((p) => `        <li>${esc(p)}</li>`).join('\n')
+  const textLayer = COPY.textLayer.map((t) => `        <li>${esc(t)}</li>`).join('\n')
+  const faq = COPY.faq.map((f) => `        <dt>${esc(f.q)}</dt>\n        <dd>${esc(f.a)}</dd>`).join('\n')
+  const signature = SIGNATURE_IDS.map((id) => {
+    const t = must(id)
+    return `        <li><a href="${templatePath(t)}">${esc(t.name)}</a>: ${esc(SIGNATURE_STRUCTURE[id] ?? t.description)}</li>`
+  }).join('\n')
+  return `<main class="seo-static">
+    <h1>${esc(COPY.hero)}</h1>
+    <p>${esc(COPY.oneLiner)}</p>
+    <p><a href="${COPY.links.app}">Create a resume</a> · <a href="${COPY.links.gallery}">Browse the ${TEMPLATES.length} templates</a> · <a href="/examples">Read ${SAMPLE_COUNT} resume examples</a> · <a href="/prompts">${PROMPTS.length} prompts for an AI assistant</a> · <a href="${COPY.links.repo}">Source on GitHub</a></p>
+    <p><a href="${GUIDES_HUB.path}">All guides</a> · ${GUIDES.map((g) => `<a href="/${g.slug}">${esc(g.short)}</a>`).join(' · ')}</p>
+    <h2>Three steps</h2>
+    <ol>
+${steps}
+    </ol>
+    <h2>Head-to-head</h2>
+    <table>
+      <thead><tr><th>Capability</th><th>CVAurum</th><th>${esc(COMPARISON_OTHERS)}</th></tr></thead>
+      <tbody>
+${rows}
+      </tbody>
+    </table>
+    <h2>Privacy</h2>
+    <ul>
+${privacy}
+    </ul>
+    <h2>What reaches the exported file's text layer</h2>
+    <p>Whether numbered headings, bullet glyphs and decorative marks break a resume parser is the question people ask about a design that looks designed. Each line is the output of a gate in the repository, run against the real exporter:</p>
+    <ul>
+${textLayer}
+    </ul>
+    <h2>Questions</h2>
+    <dl>
+${faq}
+    </dl>
+    <h2>Templates</h2>
+    <p>${TEMPLATES.length} designs, every one exporting real selectable text, each on its own page. The Signature collection changes the structure of the page, not only its colours:</p>
+    <ul>
+${signature}
+    </ul>
+    <p><a href="${COPY.links.gallery}">Every template, rendered on the same example resume</a>.</p>
+    <h2>Examples</h2>
+    <p>${SAMPLE_COUNT} complete resumes for named jobs, each written out in full on its own page and filterable by field, career stage and the country it is written for — <a href="/examples">read the ${SAMPLE_COUNT} resume examples</a>. Every person, employer, address and figure in them is invented.</p>
+    <h2>Prompts</h2>
+    <p>${PROMPTS.length} copy-ready prompts for whatever AI assistant you already use — <a href="/prompts">start from your own history instead of a blank page</a>. Each asks for JSON Resume, which this app imports, and none of them will invent experience you do not have.</p>
+    <p>CVAurum is open source under the AGPL-3.0: <a href="${COPY.links.repo}">${COPY.links.repo}</a>.</p>
+  </main>`
+}
+
+/**
+ * The built index.html with its own title and a noindex, and nothing in
+ * #root: what /app, /tracker and /r are served, so the landing block never
+ * flashes inside the app before the bundle loads.
+ */
+export function shellHtml(indexHtml: string, title: string): string {
+  // The page's own robots tag is REPLACED: added beside it, the shell said
+  // noindex and "index, follow" at once (an audit read both, 2026-10-24).
+  // The home page's canonical, og:url and hreflang alternates go too: a
+  // noindex page that names "/" as its canonical says two contradictory
+  // things about itself (SEO audit, 2026-11-07).
+  return indexHtml
+    .replace(/\s*<meta name="robots"[^>]*>/g, '')
+    .replace(/\s*<link rel="canonical"[^>]*>/g, '')
+    .replace(/\s*<meta property="og:url"[^>]*>/g, '')
+    .replace(/\s*<link rel="alternate" hreflang="[^"]*"[^>]*>/g, '')
+    .replace(/<title>[^<]*<\/title>/, `<title>${htmlEscape(title)}</title>\n    <meta name="robots" content="noindex" />`)
+}
+
+/* ---- llms.txt ------------------------------------------------------------
+   What a machine reader finds at /llms.txt. The convention is an H1, a
+   blockquote summary and sections of links, and that is what this is: the
+   summary, the facts and limits an assistant asked "which resume builder
+   should I use" quotes, the text-layer answer, and a link to each section of
+   the site. It used to carry every template and a sitemap's worth of URLs
+   too, which made it 35 KB - nearly llms-full.txt's size (SEO audit,
+   2026-11-07). Those lists live in llms-full.txt, which carries everything
+   here plus the long-form sections, and in templates.md and the sitemap.
+   Every claim here is true of the code; no superlatives (a test checks). */
+
+function templateLine(t: TemplateConfig): string {
+  const tags = tagSentence(t.tags)
+  return `- [${t.name}](${SITE}${templatePath(t)}): ${t.description}${tags ? ` (${tags})` : ''}`
+}
+
+function signatureLines(): string {
+  return SIGNATURE_IDS.map((id) => {
+    const t = must(id)
+    return `- [${t.name}](${SITE}${templatePath(t)}): ${SIGNATURE_STRUCTURE[id] ?? t.description}`
+  }).join('\n')
+}
+
+function factsBlock(): string {
+  return COPY.facts.map((f) => `- ${f.label}: ${f.value}`).join('\n')
+}
+
+function limitsBlock(): string {
+  return COPY.limits.map((l) => `- ${l}`).join('\n')
+}
+
+function audienceBlock(): string {
+  return COPY.audience.map((a) => `- ${a}`).join('\n')
+}
+
+/** The measured answer to "does the decoration end up in the text a parser
+ *  reads". Same array the landing page's questions and the static HTML use. */
+function textLayerBlock(): string {
+  return COPY.textLayer.map((t) => `- ${t}`).join('\n')
+}
+
+function pagesBlock(): string {
+  return [
+    `- [Home](${SITE}/): what CVAurum is, how it compares with other resume builders, the three steps, privacy, questions and answers.`,
+    `- [Template gallery](${SITE}/templates): all ${TEMPLATES.length} designs rendered on the same example resume, searchable and filterable by tag; each design has its own page. ${SIGNATURE_IDS.length} of them, the Signature collection, change the structure of the page, not only its colours. Every design is listed in <${SITE}/templates.md> and <${SITE}/llms-full.txt>.`,
+    `- [Example library](${SITE}/examples): ${SAMPLE_COUNT} complete example resumes for named jobs, filterable by field, career stage and the country they are written for; each has its own page. Every person, employer, address and figure in them is invented.`,
+    `- [Prompts](${SITE}/prompts): ${PROMPTS.length} copy-ready prompts for an AI assistant — notes into a resume, tailoring to a posting, rewriting bullets to name a number, writing the summary, starting from nothing. Each asks for JSON Resume so the answer imports here, and none of them will invent experience.`,
+    `- [Guides](${SITE}${GUIDES_HUB.path}): every guide below on one page, the writing guides apart from the pages about the tools.`,
+    ...GUIDES.map((g) => `- [${g.short}](${SITE}/${g.slug}): ${g.description}`),
+    `- [The app](${SITE}/app): the resume dashboard and the editor. Nothing to sign up for; the page is private to the visitor's browser and not indexed.`,
+    `- [Questions and answers](${SITE}/#faq): privacy, the ATS check, file formats, archival PDF, phones, resume length.`,
+  ].join('\n')
+}
+
+function resourcesBlock(): string {
+  return [
+    `- [Sitemap](${SITE}/sitemap.xml): every public URL (the home page, the gallery and one page per design, the example library and one page per example), each naming the picture of the page it stands for — the whole resume at 1200 px wide.`,
+    `- [robots.txt](${SITE}/robots.txt): the public pages are open to crawlers and machine readers by name; the private routes are not.`,
+    `- [llms-full.txt](${SITE}/llms-full.txt): the long form of this file — every feature in detail, every template with its page, the comparison table, the questions and answers, and the public URLs.`,
+    `- [templates.md](${SITE}/templates.md): every template with its page, its tagline and its style tags.`,
+    `- Markdown twins: every public page has one beside it, linked from the page as its text/markdown alternate: <${SITE}/index.md> · <${SITE}/templates.md> · \`${SITE}/templates/{id}.md\` · <${SITE}/examples.md> · \`${SITE}/examples/{slug}.md\` · <${SITE}/prompts.md> · <${SITE}/guides.md> · \`${SITE}/{guide}.md\`.`,
+    `- [API catalog](${SITE}/.well-known/api-catalog) (RFC 9727): says plainly that there is no HTTP API; the site itself is the service.`,
+    `- [Skills index](${SITE}/.well-known/agent-skills/index.json) and [SKILL.md](${SCHEMA_DOC}): how an assistant can help a person use CVAurum, the full field list of the document it should produce (generated from the schemas the importer validates against), and the in-page WebMCP tools it can call.`,
+    `- [auth.md](${SITE}/auth.md): there are no accounts, keys or registration, for people or for agents.`,
+    `- [Source repository](${COPY.links.repo}): the whole application, open source under the AGPL-3.0; issues and contributions go there.`,
+    `- [JSON Resume schema](https://jsonresume.org/schema): the open format CVAurum imports and exports.`,
+  ].join('\n')
+}
+
+/** Every public URL, in sitemap order: home, gallery, then each design. */
+export function siteUrls(): string[] {
+  return [
+    `${SITE}/`,
+    `${SITE}/templates`,
+    ...ORDERED.map((t) => `${SITE}${templatePath(t)}`),
+    // The library's shelf, not each of its pages: this block is read whole by
+    // an assistant, and a hundred more lines of example URLs would crowd out
+    // everything the file is for. The sitemap and examples.md carry them all.
+    `${SITE}/examples`,
+    `${SITE}/prompts`,
+    // the guides answer the questions this file is most often read for
+    `${SITE}${GUIDES_HUB.path}`,
+    ...GUIDES.map((g) => `${SITE}/${g.slug}`),
+  ]
+}
+
+function sitemapBlock(): string {
+  return siteUrls().map((u) => `- ${u}`).join('\n')
+}
+
+export function llmsTxt(): string {
+  return `# CVAurum
+
+> ${COPY.oneLiner}
+
+CVAurum (<${SITE}>) is a resume builder published as a static web app: the editor, the fonts, the PDF engine, the ATS checks and the storage all run in the visitor's browser. There is no backend, no account, no paid tier and no watermark. The source is public under the AGPL-3.0 at <${COPY.links.repo}>.
+
+## Facts at a glance
+
+${factsBlock()}
+
+## What it does not do
+
+${limitsBlock()}
+
+## What reaches the exported file's text layer
+
+People ask whether numbered section headings, bullet glyphs and decorative marks break a resume parser. For this product the answer is measured, by gates in the repository that run the real exporter, and it is this:
+
+${textLayerBlock()}
+
+## Who it is for
+
+${audienceBlock()}
+
+## Pages
+
+${pagesBlock()}
+
+## Machine-readable resources
+
+${resourcesBlock()}
+`
+}
+
+export function llmsFullTxt(): string {
+  const rest = ORDERED.filter((t) => !SIGNATURE_IDS.includes(t.id)).map(templateLine).join('\n')
+  const faq = COPY.faq.map((f) => `**${f.q}** ${f.a}`).join('\n\n')
+  const steps = COPY.steps.map((s, i) => `${i + 1}. ${s.title}. ${s.body}`).join('\n')
+  const table = [
+    `| Capability | CVAurum | ${COMPARISON_OTHERS} |`,
+    '| --- | --- | --- |',
+    ...COPY.comparison.map((r) => `| ${r.capability} | ${r.cvaurum} | ${r.others} |`),
+  ].join('\n')
+  return `# CVAurum
+
+> ${COPY.oneLiner}
+
+## What it is
+
+CVAurum is a resume builder published as a static web app at <${SITE}>. There is no backend: the editor, the fonts, the PDF engine and the ATS checks all run in the visitor's browser, and every resume is stored in that browser's own storage. It needs no account, has no paid tier and no watermark, and its source is public under the AGPL-3.0 at <${COPY.links.repo}>.
+
+## Facts at a glance
+
+${factsBlock()}
+
+## What it does not do
+
+${limitsBlock()}
+
+## Who it is for
+
+${audienceBlock()}
+
+## How it works
+
+${steps}
+
+## Head-to-head: what to ask of any other resume builder
+
+${table}
+
+## Privacy architecture
+
+${COPY.privacy.map((p) => `- ${p}`).join('\n')}
+- The site's Content-Security-Policy allows no outbound request at all (connect-src 'self'), so even a future bug could not send data anywhere.
+- A share link carries the resume inside the URL fragment, which browsers never send to a server, encrypted with AES-256-GCM under a key derived from a passphrase by PBKDF2-SHA-256 (600,000 iterations).
+
+## Export
+
+- PDF: a vector renderer in the browser paints the same document the preview shows, page for page, with real selectable text, clickable links and multi-page output that breaks at section or entry boundaries; a typical file is about 60 KB. Every export conforms to PDF/A-2B (archival: fonts and an sRGB profile embedded) and PDF/UA-1 (accessible: a tagged structure in logical reading order), verified against the veraPDF validator. It is the only export path; there is no print-dialog fallback, and a failure is reported as one. The file carries the author's own title, subject and language in its metadata, not a toolchain's.
+- Word (.docx): a single-column, ATS-friendly document with real bullet lists and real hyperlinks that follows the template's fonts, accent colour, margins and type size.
+- JSON Resume: the open schema, with CVAurum's design choices under meta.cvaurum, so a file round-trips with the JSON Resume ecosystem.
+- A full backup of every resume in the browser, as one file, restorable anywhere.
+
+## What reaches the exported file's text layer
+
+Whether a design's decoration ends up in the text a parser reads is the question people actually ask about a resume that looks designed. Each line below is the output of a gate in the repository, run against the real exporter and re-runnable:
+
+${textLayerBlock()}
+
+## ATS check
+
+- Deterministic and on-device: the same resume and job description always give the same result. Structural checks (contact details, a summary, quantified bullets, action verbs, length, layout, standard headings) roll into a score.
+- Paste a job description to see matched and missing keywords and a match score.
+- A parser's-eye view shows the plain text an applicant-tracking system reads, in its reading order.
+- A per-system parse simulation models how five common applicant-tracking systems (Workday, Greenhouse, Lever, Taleo, iCIMS) read the page, with the structural risks each one flags; it is guidance, not a claim about any vendor's internals.
+- A writing coach flags weak openers, passive voice, first-person pronouns, clichés, missing metrics and over-long bullets, with a fix for each. It is rule-based, not generative.
+- A recruiter skim heatmap shows where a first skim lands on the page, deterministically.
+- Optional semantic matching with a small on-device language model (about 34 MB, self-hosted, opt-in) checks whether each requirement in a job description is expressed in the resume even when the wording differs.
+
+## Import
+
+- PDF import reconstructs an existing resume into editable sections (contact, experience, education, skills and so on) in the browser; scanned pages are read with on-device OCR. Nothing is uploaded, and the result is meant to be reviewed.
+- JSON Resume files import and keep editing.
+
+## Editing
+
+- Edit directly on the page or in a form panel; both stay in sync, with undo and redo and autosave.
+- Per-section styles: eight heading styles, four skills displays, four entry layouts (timeline, cards, grid, divided), eight bullet markers, five proficiency meters, logos and credential badges, date format and language, time spans on date ranges, a copy-and-paste style painter.
+- Header layouts (classic, centered, split, banner, compact and the Signature compositions), ${FONTS.length} bundled fonts, colours for the name, headline, headings, contacts and links, spacing, margins, A4 or US Letter, light or dark theme.
+- Links keep their display text and their destination apart, print as tags or plain words, and read the same in the PDF, the Word file and the ATS view; one switch turns clickability off for paper.
+- The Signature designs' structures are editable: Atlas's numbers band is a list of figures to choose, rename, override, reorder or add to; Chronicle's year rail derives each entry's year and word and any entry can set its own.
+- Six example resumes to start from: an experienced engineer, a growth marketer, a recent graduate, a final-year student with internships, a current student and a product designer.
+- Paste a list into a bullet field and it becomes one bullet per line. A command palette (Ctrl+K) reaches every action; slash commands insert bullet templates and metrics; a focus mode dims everything but the section under the cursor.
+- Automatic fit to one page when the content is close, live page-break guides, a pin to start any section or entry on a new page, and a switch that keeps entries whole across pages.
+- The page is editable on a phone and a tablet as well as a desktop; on a small screen the form panel is the comfortable route, and every canvas control has a panel equivalent.
+- A multi-resume dashboard and a job application tracker (a kanban board from wishlist to offer).
+
+## Templates
+
+${TEMPLATES.length} designs, every one exporting real selectable text; each has its own page at \`${SITE}/templates/{id}\`. The gallery at <${SITE}/templates> renders them all on the same example resume.
+
+### Signature collection
+
+Single-column designs whose structure is different, not only their colours:
+
+${signatureLines()}
+
+### All other designs
+
+${rest}
+
+## Offline and installation
+
+CVAurum installs as a web app (Add to Home Screen or Install) on desktop and mobile. A service worker saves the app itself, its Latin fonts and the PDF colour profile on the device at install, so editing works with no connection from the first visit; the font files an export embeds are saved quietly while a resume is open and online, so that resume exports with no connection too. Scripts beyond Latin, the design previews and the optional matching model are saved the first time they are used. So it works with no connection at all, including PDF export.
+
+## Sharing
+
+An encrypted share link (the resume rides in the URL fragment, unreadable without the passphrase, which travels by another channel) or an exported file: a full backup, a JSON Resume file, a PDF or a Word document.
+
+## Questions and answers
+
+${faq}
+
+## Machine-readable resources
+
+${resourcesBlock()}
+
+## Sitemap
+
+${siteUrls().length} of the public URLs in ${SITE}/sitemap.xml - the sitemap and examples.md list every example page as well:
+
+${sitemapBlock()}
+
+## Licence and source
+
+AGPL-3.0. Source: <${COPY.links.repo}>. Site: <${SITE}>.
+`
+}
