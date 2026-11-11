@@ -1,0 +1,1884 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OmniConvert Luxury - Studio & Converter</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            base: '#070a11',
+                            card: '#0e1424',
+                            border: 'rgba(255, 255, 255, 0.08)'
+                        },
+                        neon: {
+                            cyan: '#00f2fe',
+                            blue: '#4facfe',
+                            emerald: '#10b981',
+                            pink: '#f43f5e'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #070a11;
+            color: #f8fafc;
+            touch-action: manipulation;
+            overflow-x: hidden;
+        }
+        .luxury-card {
+            background: linear-gradient(145deg, rgba(17, 24, 39, 0.8), rgba(12, 16, 28, 0.95));
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 1.25rem;
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
+        }
+        .luxury-glow {
+            box-shadow: 0 0 20px -5px rgba(0, 242, 254, 0.35);
+        }
+        .btn-luxury {
+            position: relative;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translate3d(0,0,0);
+            will-change: transform;
+        }
+        .btn-luxury:active {
+            transform: scale(0.96) translate3d(0,0,0);
+        }
+        .nav-glow.active {
+            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            color: #000;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: #1e293b;
+            border-radius: 6px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00f2fe;
+            cursor: pointer;
+            box-shadow: 0 0 10px #00f2fe;
+            border: 2px solid #ffffff;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00f2fe;
+            cursor: pointer;
+            box-shadow: 0 0 10px #00f2fe;
+            border: 2px solid #ffffff;
+        }
+        .checker-bg {
+            background-image: linear-gradient(45deg, #111827 25%, transparent 25%), 
+                              linear-gradient(-45deg, #111827 25%, transparent 25%), 
+                              linear-gradient(45deg, transparent 75%, #111827 75%), 
+                              linear-gradient(-45deg, transparent 75%, #111827 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between text-slate-100 antialiased pb-20 md:pb-0">
+
+    <header class="sticky top-0 z-50 px-4 py-3 border-b border-white/10 bg-dark-base/95 backdrop-blur-none">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('pdf-tools')">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                    <i class="fa-solid fa-crown text-black text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-extrabold tracking-tight text-white leading-none">
+                        OmniStudio<span class="text-neon-cyan">.</span>
+                    </h1>
+                    <span class="text-[10px] text-emerald-400 font-semibold tracking-wide">LUXURY ACCELERATED ENGINE</span>
+                </div>
+            </div>
+
+            <nav class="hidden md:flex items-center space-x-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-white/10">
+                <button onclick="switchTab('pdf-tools')" id="nav-pdf-tools" class="nav-tab nav-glow active text-xs font-bold px-5 py-2.5 rounded-xl transition-all">
+                    <i class="fa-solid fa-file-pdf mr-2"></i>Converter
+                </button>
+                <button onclick="switchTab('crop-studio')" id="nav-crop-studio" class="nav-tab text-xs font-bold px-5 py-2.5 rounded-xl text-slate-400 hover:text-white transition-all">
+                    <i class="fa-solid fa-shapes mr-2"></i>Shape Studio
+                </button>
+                <button onclick="switchTab('image-tools')" id="nav-image-tools" class="nav-tab text-xs font-bold px-5 py-2.5 rounded-xl text-slate-400 hover:text-white transition-all">
+                    <i class="fa-solid fa-sliders mr-2"></i>Format Engine
+                </button>
+                <button onclick="switchTab('ai-detector')" id="nav-ai-detector" class="nav-tab text-xs font-bold px-5 py-2.5 rounded-xl text-slate-400 hover:text-white transition-all">
+                    <i class="fa-solid fa-magnifying-glass-chart mr-2"></i>AI Image Detector
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-6xl w-full mx-auto px-3 sm:px-4 py-5 md:py-8">
+
+        <section id="pdf-tools" class="tab-content space-y-6">
+            <div class="text-center max-w-xl mx-auto space-y-2">
+                <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
+                    Converter
+                </h2>
+                <p class="text-xs text-slate-400 font-medium">Instant client-side file parsing with high-speed rendering.</p>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto">
+                <button onclick="setDocMode('pdf-to-docx')" id="mode-pdf-to-docx" class="doc-mode-btn btn-luxury p-3 rounded-2xl luxury-card text-center border-neon-cyan bg-cyan-950/30">
+                    <i class="fa-solid fa-file-word text-2xl text-cyan-400 mb-1.5"></i>
+                    <div class="text-xs font-bold">PDF to DOCX</div>
+                </button>
+                <button onclick="setDocMode('docx-to-pdf')" id="mode-docx-to-pdf" class="doc-mode-btn btn-luxury p-3 rounded-2xl luxury-card text-center">
+                    <i class="fa-solid fa-file-pdf text-2xl text-rose-400 mb-1.5"></i>
+                    <div class="text-xs font-bold">DOCX to PDF</div>
+                </button>
+                <button onclick="setDocMode('img-to-pdf')" id="mode-img-to-pdf" class="doc-mode-btn btn-luxury p-3 rounded-2xl luxury-card text-center">
+                    <i class="fa-solid fa-file-image text-2xl text-emerald-400 mb-1.5"></i>
+                    <div class="text-xs font-bold">Image to PDF</div>
+                </button>
+                <button onclick="setDocMode('txt-to-pdf')" id="mode-txt-to-pdf" class="doc-mode-btn btn-luxury p-3 rounded-2xl luxury-card text-center">
+                    <i class="fa-solid fa-file-lines text-2xl text-amber-400 mb-1.5"></i>
+                    <div class="text-xs font-bold">Text to PDF</div>
+                </button>
+            </div>
+
+            <div class="luxury-card rounded-3xl p-5 sm:p-7 max-w-2xl mx-auto space-y-5">
+                <div id="drop-zone-doc" class="border-2 border-dashed border-cyan-500/30 rounded-2xl p-7 text-center cursor-pointer bg-slate-900/40 hover:bg-slate-900/80 transition-all flex flex-col items-center justify-center space-y-3">
+                    <input type="file" id="doc-file-input" class="hidden" />
+                    <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-neon-cyan shadow-inner">
+                        <i id="doc-input-icon" class="fa-solid fa-cloud-arrow-up text-2xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-white" id="doc-upload-title">Tap or drop file to convert</p>
+                        <p class="text-[11px] text-slate-400 mt-1" id="doc-upload-desc">Supports PDF files for text & layout extraction</p>
+                    </div>
+                    <div id="doc-file-pill" class="hidden items-center space-x-2.5 bg-slate-800/90 border border-white/10 px-4 py-2 rounded-xl text-xs">
+                        <i class="fa-solid fa-paperclip text-neon-cyan"></i>
+                        <span id="doc-file-name" class="max-w-[160px] truncate font-semibold">selected.pdf</span>
+                        <span id="doc-file-size" class="text-slate-400 text-[10px]"></span>
+                    </div>
+                </div>
+
+                <div id="doc-options-panel" class="hidden space-y-3 pt-2">
+                    <div id="txt-input-container" class="hidden space-y-1.5">
+                        <label class="text-xs font-bold text-slate-300">Direct Text Input:</label>
+                        <textarea id="txt-direct-input" rows="4" class="w-full bg-slate-900/90 border border-white/10 rounded-2xl p-3 text-xs text-slate-200 focus:outline-none focus:border-neon-cyan" placeholder="Type or paste document content here..."></textarea>
+                    </div>
+
+                    <div id="pdf-page-orientation" class="hidden grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[11px] font-semibold text-slate-400 block mb-1">Page Orientation</label>
+                            <select id="pdf-orientation" class="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white">
+                                <option value="p">Portrait Mode</option>
+                                <option value="l">Landscape Mode</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-semibold text-slate-400 block mb-1">Standard Size</label>
+                            <select id="pdf-format" class="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white">
+                                <option value="a4">A4 Standard</option>
+                                <option value="letter">US Letter</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-2.5 pt-2">
+                    <button id="btn-convert-doc" disabled onclick="processDocConversion()" class="btn-luxury w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 font-extrabold text-xs text-black shadow-lg shadow-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+                        <span>CONVERT NOW</span>
+                    </button>
+                    <button id="btn-download-doc" class="hidden btn-luxury w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 font-extrabold text-xs text-black shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-download text-sm"></i>
+                        <span id="doc-download-label">Download Result</span>
+                    </button>
+                </div>
+
+                <div id="doc-progress-container" class="hidden space-y-1.5">
+                    <div class="flex justify-between text-[11px] font-bold">
+                        <span id="doc-progress-status" class="text-slate-400">Processing file...</span>
+                        <span id="doc-progress-percent" class="text-neon-cyan">0%</span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-white/5">
+                        <div id="doc-progress-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 w-0 transition-all duration-200"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="crop-studio" class="tab-content hidden space-y-6">
+            <div class="text-center max-w-xl mx-auto space-y-2">
+                <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
+                    Luxury Shape Studio
+                </h2>
+                <p class="text-xs text-slate-400 font-medium">Precision cropping with live hardware sliders and touch pan controls.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                
+                <div class="lg:col-span-7 luxury-card p-4 sm:p-5 flex flex-col items-center">
+                    
+                    <div id="crop-dropzone" class="w-full border border-dashed border-slate-700/80 rounded-2xl p-3.5 text-center cursor-pointer bg-slate-900/60 mb-4 hover:border-neon-cyan transition-colors">
+                        <input type="file" id="crop-file-input" class="hidden" accept="image/*" />
+                        <div class="flex items-center justify-center space-x-2 text-xs text-slate-300">
+                            <i class="fa-solid fa-image text-neon-cyan"></i>
+                            <span class="font-bold">Browse or Drop Image for Masking</span>
+                        </div>
+                        <div id="crop-selected-preview" class="hidden mt-3 flex items-center justify-center gap-3">
+                            <img id="crop-selected-thumb" alt="Selected image preview" class="h-16 w-16 rounded-xl object-cover border border-cyan-400/30">
+                            <span id="crop-selected-name" class="max-w-[220px] truncate text-[11px] text-slate-300"></span>
+                        </div>
+                    </div>
+
+                    <div class="w-full h-[300px] sm:h-[380px] relative rounded-2xl overflow-hidden checker-bg border border-white/10 flex items-center justify-center touch-none luxury-glow">
+                        <canvas id="shape-crop-canvas" class="max-h-full max-w-full object-contain hidden cursor-grab active:cursor-grabbing"></canvas>
+                        
+                        <div id="crop-empty-placeholder" class="text-center p-6 space-y-2">
+                            <div class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-slate-500">
+                                <i class="fa-solid fa-shapes text-3xl"></i>
+                            </div>
+                            <p class="text-slate-400 font-bold text-xs">No image loaded into workspace</p>
+                            <p class="text-[10px] text-slate-500">Select an image to unlock live controls</p>
+                        </div>
+                    </div>
+
+                    <div class="w-full mt-4 flex items-center justify-between">
+                        <span class="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
+                            <i class="fa-solid fa-hand-pointer text-neon-cyan"></i> Touch/Drag inside frame to align
+                        </span>
+                        <button onclick="triggerCropDownload(event)" id="btn-download-cropped" disabled class="btn-luxury py-2.5 px-5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-xs font-extrabold text-white shadow-lg shadow-rose-500/25 disabled:opacity-40 disabled:cursor-not-allowed flex items-center space-x-2">
+                            <i class="fa-solid fa-download"></i>
+                            <span>Download Mask</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-5 luxury-card p-5 space-y-5">
+                    <div>
+                        <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3">Mask Geometric Shape</h3>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button onclick="setCropShape('rect')" class="shape-btn active btn-luxury p-2.5 rounded-xl border border-neon-cyan bg-cyan-950/30 text-center flex flex-col items-center" data-shape="rect">
+                                <i class="fa-regular fa-square text-lg text-neon-cyan"></i>
+                                <span class="text-[10px] font-bold mt-1">Rect</span>
+                            </button>
+                            <button onclick="setCropShape('circle')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/5 text-center flex flex-col items-center" data-shape="circle">
+                                <i class="fa-regular fa-circle text-lg text-slate-300"></i>
+                                <span class="text-[10px] font-bold mt-1">Circle</span>
+                            </button>
+                            <button onclick="setCropShape('star')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/5 text-center flex flex-col items-center" data-shape="star">
+                                <i class="fa-regular fa-star text-lg text-slate-300"></i>
+                                <span class="text-[10px] font-bold mt-1">Star</span>
+                            </button>
+                            <button onclick="setCropShape('heart')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/5 text-center flex flex-col items-center" data-shape="heart">
+                                <i class="fa-regular fa-heart text-lg text-slate-300"></i>
+                                <span class="text-[10px] font-bold mt-1">Heart</span>
+                            </button>
+                            <button onclick="setCropShape('hexagon')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/5 text-center flex flex-col items-center" data-shape="hexagon">
+                                <i class="fa-solid fa-cube text-lg text-slate-300"></i>
+                                <span class="text-[10px] font-bold mt-1">Hexagon</span>
+                            </button>
+                            <button onclick="setCropShape('oval')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/5 text-center flex flex-col items-center" data-shape="oval">
+                                <i class="fa-solid fa-egg text-lg text-slate-300"></i>
+                                <span class="text-[10px] font-bold mt-1">Oval</span>
+                            </button>
+                            <button onclick="setCropShape('rounded')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/5 text-center flex flex-col items-center" data-shape="rounded">
+                                <i class="fa-solid fa-vector-square text-lg text-slate-300"></i>
+                                <span class="text-[10px] font-bold mt-1">Round</span>
+                            </button>
+                            <button onclick="setCropShape('diamond')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/5 text-center flex flex-col items-center" data-shape="diamond">
+                                <i class="fa-solid fa-diamond text-lg text-slate-300"></i>
+                                <span class="text-[10px] font-bold mt-1">Diamond</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 pt-3 border-t border-white/10">
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="text-slate-400">Scale / Zoom</span>
+                                <span id="val-zoom" class="text-neon-cyan">100%</span>
+                            </div>
+                            <input type="range" id="slider-zoom" min="50" max="250" value="100" class="w-full" oninput="requestCanvasUpdate()">
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="text-slate-400">Rotation Angle</span>
+                                <span id="val-rotate" class="text-neon-cyan">0°</span>
+                            </div>
+                            <input type="range" id="slider-rotate" min="-180" max="180" value="0" class="w-full" oninput="requestCanvasUpdate()">
+                        </div>
+
+                        <div id="corner-radius-group" class="hidden space-y-1.5">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="text-slate-400">Corner Radius</span>
+                                <span id="val-radius" class="text-neon-cyan">20px</span>
+                            </div>
+                            <input type="range" id="slider-radius" min="0" max="100" value="20" class="w-full" oninput="requestCanvasUpdate()">
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="text-slate-400">Brightness</span>
+                                <span id="val-brightness" class="text-neon-cyan">100%</span>
+                            </div>
+                            <input type="range" id="slider-brightness" min="50" max="150" value="100" class="w-full" oninput="requestCanvasUpdate()">
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="text-slate-400">Contrast</span>
+                                <span id="val-contrast" class="text-neon-cyan">100%</span>
+                            </div>
+                            <input type="range" id="slider-contrast" min="50" max="150" value="100" class="w-full" oninput="requestCanvasUpdate()">
+                        </div>
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="text-slate-400">Clarity</span>
+                                <span id="val-clarity" class="text-neon-cyan">0</span>
+                            </div>
+                            <input type="range" id="slider-clarity" min="0" max="100" value="0" class="w-full" oninput="requestCanvasUpdate()">
+                        </div>
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="text-slate-400">Sharpen</span>
+                                <span id="val-sharpen" class="text-neon-cyan">0</span>
+                            </div>
+                            <input type="range" id="slider-sharpen" min="0" max="100" value="0" class="w-full" oninput="requestCanvasUpdate()">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 pt-2">
+                            <div>
+                                <label class="text-[11px] font-bold text-slate-400 block mb-1">Export Format</label>
+                                <select id="crop-export-format" class="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white font-semibold">
+                                    <option value="png">PNG (Transparent)</option>
+                                    <option value="jpeg">JPG Standard</option>
+                                    <option value="webp">WEBP</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[11px] font-bold text-slate-400 block mb-1">Aspect Ratio</label>
+                                <select id="crop-aspect-ratio" class="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white font-semibold" onchange="requestCanvasUpdate()">
+                                    <option value="1:1">1:1 Square</option>
+                                    <option value="4:3">4:3 Photo</option>
+                                    <option value="16:9">16:9 Wide</option>
+                                </select>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="image-tools" class="tab-content hidden space-y-6">
+            <div class="text-center max-w-xl mx-auto space-y-2">
+                <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
+                    Format Engine & Compression
+                </h2>
+                <p class="text-xs text-slate-400 font-medium">Re-encode photos between JPG, PNG, and WEBP with real-time compression size estimation.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                <div class="lg:col-span-6 luxury-card p-5 space-y-5">
+                    <div id="drop-zone-img" class="border-2 border-dashed border-cyan-500/30 rounded-2xl p-7 text-center cursor-pointer bg-slate-900/40 hover:bg-slate-900/80 transition-all flex flex-col items-center justify-center space-y-3">
+                        <input type="file" id="img-file-input" class="hidden" accept="image/*" />
+                        <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-neon-cyan shadow-inner">
+                            <i class="fa-solid fa-images text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-white">Tap or drop image here</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Instant local format conversion</p>
+                        </div>
+                        <div id="img-file-pill" class="hidden items-center space-x-2.5 bg-slate-800/90 border border-white/10 px-4 py-2 rounded-xl text-xs">
+                            <i class="fa-solid fa-file-image text-neon-cyan"></i>
+                            <span id="img-file-name" class="max-w-[160px] truncate font-semibold">photo.png</span>
+                            <span id="img-file-size" class="text-slate-400 text-[10px]"></span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-bold text-slate-300 block mb-1.5">Target Format</label>
+                            <select id="target-img-format" class="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-xs text-white font-semibold" onchange="updateLiveImagePreview()">
+                                <option value="image/jpeg">JPG (Standard Photo)</option>
+                                <option value="image/png">PNG (Lossless / Transparent)</option>
+                                <option value="image/webp">WEBP (Web Compact)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs font-bold text-slate-300 mb-1.5">
+                                <span>Compression Quality</span>
+                                <span id="val-quality" class="text-neon-cyan">80%</span>
+                            </div>
+                            <input type="range" id="slider-quality" min="10" max="100" value="80" class="w-full mt-2" oninput="updateLiveImagePreview()">
+                        </div>
+                    </div>
+
+                    <div id="img-size-estimation" class="hidden bg-slate-900/90 border border-cyan-500/30 rounded-2xl p-4 text-xs space-y-1">
+                        <div class="flex justify-between font-bold text-slate-400">
+                            <span>Original File Size:</span>
+                            <span id="orig-size-label" class="text-white">0 KB</span>
+                        </div>
+                        <div class="flex justify-between font-extrabold text-neon-cyan">
+                            <span>Estimated Result Size:</span>
+                            <span id="est-size-label" class="text-emerald-400">0 KB (-0%)</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <button id="btn-process-img" disabled onclick="processImageConversion(event)" class="btn-luxury w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 font-extrabold text-xs text-black shadow-lg shadow-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-bolt text-sm"></i>
+                            <span>CONVERT & DOWNLOAD</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-6 luxury-card p-5 flex flex-col items-center">
+                    <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3 self-start">Live Output Preview</h3>
+                    <div class="w-full h-[280px] sm:h-[350px] relative rounded-2xl overflow-hidden checker-bg border border-white/10 flex items-center justify-center">
+                        <canvas id="img-tool-canvas" class="max-h-full max-w-full object-contain hidden"></canvas>
+                        <div id="img-empty-placeholder" class="text-center p-6 space-y-2">
+                            <div class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-slate-500">
+                                <i class="fa-solid fa-sliders text-3xl"></i>
+                            </div>
+                            <p class="text-slate-400 font-bold text-xs">No image loaded for compression</p>
+                            <p class="text-[10px] text-slate-500">Preview changes dynamically here</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="ai-detector" class="tab-content hidden space-y-6">
+            <div class="text-center max-w-2xl mx-auto space-y-2">
+                <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
+                    AI Image Detector
+                </h2>
+                <p class="text-xs text-slate-400 font-medium">Fast, private AI-image screening. Your image stays on your device and is processed locally.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                <div class="lg:col-span-5 luxury-card p-5 space-y-4">
+                    <div id="ai-dropzone" class="border-2 border-dashed border-cyan-500/30 rounded-2xl p-7 text-center cursor-pointer bg-slate-900/40 hover:bg-slate-900/80 transition-all flex flex-col items-center justify-center space-y-3">
+                        <input type="file" id="ai-file-input" class="hidden" accept="image/*,.avif,.heic" />
+                        <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-neon-cyan">
+                            <i class="fa-solid fa-fingerprint text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-white">Select or drop an image</p>
+                            <p class="text-[11px] text-slate-400 mt-1">JPEG, PNG, WebP, TIFF and other browser-readable images</p>
+                        </div>
+                        <div id="ai-selected-preview" class="hidden mt-2 flex items-center justify-center gap-3">
+                            <img id="ai-selected-thumb" alt="Selected image preview" class="h-16 w-16 rounded-xl object-cover border border-cyan-400/30">
+                            <span id="ai-selected-name" class="max-w-[180px] truncate text-[11px] text-slate-300"></span>
+                        </div>
+                        <div id="ai-file-pill" class="hidden items-center space-x-2 bg-slate-800/90 border border-white/10 px-4 py-2 rounded-xl text-xs">
+                            <i class="fa-solid fa-file-image text-neon-cyan"></i>
+                            <span id="ai-file-name" class="max-w-[180px] truncate font-semibold"></span>
+                            <span id="ai-file-size" class="text-slate-400 text-[10px]"></span>
+                        </div>
+                    </div>
+                    <button id="btn-analyze-ai" disabled onclick="analyzeImageAuthenticity()" class="btn-luxury w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 font-extrabold text-xs text-black shadow-lg shadow-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-magnifying-glass-chart mr-2"></i>ANALYZE IMAGE
+                    </button>
+                    <div class="text-[11px] text-slate-500 leading-relaxed">
+                        <i class="fa-solid fa-lock text-emerald-400 mr-1"></i>
+                        Private local analysis: your image is not uploaded. Processing happens on your device. The first setup downloads a required file once for this browser; later visits reuse its saved copy. Results are screening estimates, not proof.
+                    </div>
+                </div>
+
+                <div class="lg:col-span-7 luxury-card p-5 space-y-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Forensic report</h3>
+                        <span id="ai-verdict" class="text-[10px] font-extrabold px-3 py-1.5 rounded-full bg-slate-800 text-slate-300">WAITING FOR IMAGE</span>
+                    </div>
+                    <div id="ai-summary" class="text-sm text-slate-300 leading-relaxed">
+                        Select an image to run a fast local AI-generation screening check.
+                    </div>
+                    <div id="ai-progress-wrap" class="hidden space-y-3 rounded-xl border border-cyan-400/20 bg-slate-950/70 p-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-2 text-xs font-bold text-cyan-300">
+                                <i class="fa-solid fa-circle-notch fa-spin"></i><span id="ai-progress-title">Starting forensic checks...</span>
+                            </div>
+                            <span id="ai-progress-percent" class="text-[11px] font-bold tabular-nums text-slate-400">0%</span>
+                        </div>
+                        <div class="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                            <div id="ai-progress-bar" class="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-500" style="width:0%"></div>
+                        </div>
+                        <div id="ai-progress-steps" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-slate-500"></div>
+                    </div>
+
+                    <div class="border-t border-white/10 pt-3 text-[10px] text-amber-300/90 leading-relaxed">
+                        <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                        Important: metadata can be stripped, edited or copied. Missing EXIF does not prove AI generation; valid camera EXIF does not prove authenticity. ICC profiles are commonly used by both real photos and generated images. C2PA is meaningful only when its signed manifest is successfully verified.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-dark-base border-t border-white/10 z-50 px-1 py-2 flex justify-around">
+        <button onclick="switchTab('pdf-tools')" id="mobile-nav-pdf-tools" class="mobile-nav-tab nav-glow active flex-1 py-2 text-center text-[11px] font-bold rounded-xl mx-0.5 transition-all">
+            <i class="fa-solid fa-file-pdf block text-base mb-0.5"></i>Converter
+        </button>
+        <button onclick="switchTab('crop-studio')" id="mobile-nav-crop-studio" class="mobile-nav-tab flex-1 py-2 text-center text-[11px] font-bold text-slate-400 rounded-xl mx-0.5 transition-all">
+            <i class="fa-solid fa-shapes block text-base mb-0.5"></i>Shapes
+        </button>
+        <button onclick="switchTab('image-tools')" id="mobile-nav-image-tools" class="mobile-nav-tab flex-1 py-2 text-center text-[11px] font-bold text-slate-400 rounded-xl mx-0.5 transition-all">
+            <i class="fa-solid fa-sliders block text-base mb-0.5"></i>Format
+        </button>
+        <button onclick="switchTab('ai-detector')" id="mobile-nav-ai-detector" class="mobile-nav-tab flex-1 py-2 text-center text-[10px] font-bold text-slate-400 rounded-xl mx-0.5 transition-all">
+            <i class="fa-solid fa-magnifying-glass-chart block text-base mb-0.5"></i>AI Detect
+        </button>
+    </div>
+
+    <footer class="hidden md:block border-t border-white/5 py-4 px-4 bg-dark-base">
+        <div class="max-w-6xl mx-auto flex items-center justify-between text-xs text-slate-500 font-medium">
+            <span><i class="fa-solid fa-shield-halved text-neon-cyan mr-1.5"></i> Zero Server Uploads • Private Browser Engine</span>
+            <span>OmniStudio Luxury Edition</span>
+        </div>
+    </footer>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        let currentTab = 'pdf-tools';
+        let currentDocMode = 'pdf-to-docx';
+        let loadedDocFile = null;
+        let loadedImgFile = null;
+        let cropSourceImg = new Image();
+        let formatSourceImg = new Image();
+        let currentCropShape = 'rect';
+        let convertedBlob = null;
+        let convertedFileName = '';
+
+        let panOffsetX = 0;
+        let panOffsetY = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let renderRequested = false;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            gsap.from('header', { y: -30, opacity: 0, duration: 0.4, ease: "power2.out" });
+            gsap.from('#pdf-tools', { y: 20, opacity: 0, duration: 0.4, delay: 0.1, ease: "power2.out" });
+
+            setupDropZone('drop-zone-doc', 'doc-file-input', handleDocSelect);
+            setupDropZone('crop-dropzone', 'crop-file-input', handleCropImageSelect);
+            setupDropZone('drop-zone-img', 'img-file-input', handleImageToolSelect);
+            setupCanvasPanEvents();
+
+            document.getElementById('txt-direct-input').addEventListener('input', (e) => {
+                if (currentDocMode === 'txt-to-pdf') {
+                    const btn = document.getElementById('btn-convert-doc');
+                    if (e.target.value.trim().length > 0) {
+                        btn.removeAttribute('disabled');
+                    } else if (!loadedDocFile) {
+                        btn.setAttribute('disabled', 'true');
+                    }
+                }
+            });
+        });
+
+        function triggerPartyPopper(e) {
+            let x = 0.5;
+            let y = 0.5;
+            if (e && e.clientX && e.clientY) {
+                x = e.clientX / window.innerWidth;
+                y = e.clientY / window.innerHeight;
+            }
+            confetti({
+                particleCount: 80,
+                spread: 70,
+                origin: { x: x, y: y },
+                colors: ['#00f2fe', '#4facfe', '#10b981', '#f43f5e', '#fbbf24']
+            });
+        }
+
+        function switchTab(tabId) {
+            if (tabId === currentTab) return;
+
+            document.getElementById(currentTab).classList.add('hidden');
+            document.getElementById(tabId).classList.remove('hidden');
+
+            gsap.fromTo(`#${tabId}`, { y: 15, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: "power2.out" });
+
+            document.querySelectorAll('.nav-tab').forEach(btn => {
+                btn.classList.remove('nav-glow', 'active', 'text-white');
+                btn.classList.add('text-slate-400');
+            });
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-slate-400');
+                activeBtn.classList.add('nav-glow', 'active', 'text-white');
+            }
+
+            document.querySelectorAll('.mobile-nav-tab').forEach(btn => {
+                btn.classList.remove('nav-glow', 'active', 'text-white');
+                btn.classList.add('text-slate-400');
+            });
+            const activeMobile = document.getElementById(`mobile-nav-${tabId}`);
+            if (activeMobile) {
+                activeMobile.classList.remove('text-slate-400');
+                activeMobile.classList.add('nav-glow', 'active', 'text-white');
+            }
+
+            currentTab = tabId;
+        }
+
+        function setDocMode(mode) {
+            currentDocMode = mode;
+            document.querySelectorAll('.doc-mode-btn').forEach(btn => {
+                btn.classList.remove('border-neon-cyan', 'bg-cyan-950/30');
+            });
+            document.getElementById(`mode-${mode}`).classList.add('border-neon-cyan', 'bg-cyan-950/30');
+
+            const optionsPanel = document.getElementById('doc-options-panel');
+            const txtInput = document.getElementById('txt-input-container');
+            const pageOpts = document.getElementById('pdf-page-orientation');
+
+            optionsPanel.classList.remove('hidden');
+            txtInput.classList.add('hidden');
+            pageOpts.classList.add('hidden');
+
+            if (mode === 'pdf-to-docx') {
+                document.getElementById('doc-upload-title').innerText = 'Tap or drop PDF file';
+                document.getElementById('doc-upload-desc').innerText = 'Extracts layout & text into editable DOCX';
+            } else if (mode === 'docx-to-pdf') {
+                document.getElementById('doc-upload-title').innerText = 'Tap or drop document (.docx)';
+                document.getElementById('doc-upload-desc').innerText = 'Converts document text directly into PDF';
+                pageOpts.classList.remove('hidden');
+            } else if (mode === 'img-to-pdf') {
+                document.getElementById('doc-upload-title').innerText = 'Tap or drop photo';
+                document.getElementById('doc-upload-desc').innerText = 'Converts image into single or multi page PDF';
+                pageOpts.classList.remove('hidden');
+            } else if (mode === 'txt-to-pdf') {
+                document.getElementById('doc-upload-title').innerText = 'Tap or drop text file';
+                document.getElementById('doc-upload-desc').innerText = 'Convert raw text into formatted PDF';
+                txtInput.classList.remove('hidden');
+                pageOpts.classList.remove('hidden');
+            }
+        }
+
+        function setupDropZone(zoneId, inputId, callback) {
+            const zone = document.getElementById(zoneId);
+            const input = document.getElementById(inputId);
+
+            zone.addEventListener('click', () => input.click());
+
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('border-neon-cyan');
+            });
+
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('border-neon-cyan');
+            });
+
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('border-neon-cyan');
+                if (e.dataTransfer.files.length) {
+                    input.files = e.dataTransfer.files;
+                    callback(e.dataTransfer.files[0]);
+                }
+            });
+
+            input.addEventListener('change', (e) => {
+                if (e.target.files.length) {
+                    callback(e.target.files[0]);
+                }
+            });
+        }
+
+        function handleDocSelect(file) {
+            loadedDocFile = file;
+            document.getElementById('doc-file-name').innerText = file.name;
+            document.getElementById('doc-file-size').innerText = `(${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+            const pill = document.getElementById('doc-file-pill');
+            pill.classList.remove('hidden');
+            pill.classList.add('flex');
+
+            document.getElementById('doc-options-panel').classList.remove('hidden');
+            document.getElementById('btn-convert-doc').removeAttribute('disabled');
+            document.getElementById('btn-download-doc').classList.add('hidden');
+        }
+
+        async function processDocConversion() {
+            const btnConvert = document.getElementById('btn-convert-doc');
+            const btnDownload = document.getElementById('btn-download-doc');
+            const progressContainer = document.getElementById('doc-progress-container');
+            const progressBar = document.getElementById('doc-progress-bar');
+            const progressStatus = document.getElementById('doc-progress-status');
+            const progressPercent = document.getElementById('doc-progress-percent');
+
+            btnConvert.setAttribute('disabled', 'true');
+            progressContainer.classList.remove('hidden');
+            progressBar.style.width = '25%';
+            progressPercent.innerText = '25%';
+            progressStatus.innerText = 'Extracting data...';
+
+            try {
+                if (currentDocMode === 'pdf-to-docx') {
+                    if (!loadedDocFile) return;
+                    const arrayBuffer = await loadedDocFile.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    let textResult = '';
+                    
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const content = await page.getTextContent();
+                        textResult += content.items.map(item => item.str).join(' ') + '\n\n';
+                    }
+
+                    progressBar.style.width = '80%';
+                    progressPercent.innerText = '80%';
+
+                    const htmlContent = `<html><body><pre style="font-family:sans-serif;">${textResult}</pre></body></html>`;
+                    convertedBlob = new Blob(['\ufeff' + htmlContent], { type: 'application/msword' });
+                    convertedFileName = loadedDocFile.name.replace(/\.[^/.]+$/, "") + ".docx";
+
+                } else if (currentDocMode === 'docx-to-pdf') {
+                    if (!loadedDocFile) return;
+                    const arrayBuffer = await loadedDocFile.arrayBuffer();
+                    const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+                    const textToRender = result.value || "Document parsing empty";
+
+                    const { jsPDF } = window.jspdf;
+                    const orientation = document.getElementById('pdf-orientation').value;
+                    const format = document.getElementById('pdf-format').value;
+                    const doc = new jsPDF({ orientation, format });
+
+                    const lines = doc.splitTextToSize(textToRender, 180);
+                    doc.text(lines, 10, 10);
+
+                    convertedBlob = doc.output('blob');
+                    convertedFileName = loadedDocFile.name.replace(/\.[^/.]+$/, "") + ".pdf";
+
+                } else if (currentDocMode === 'txt-to-pdf') {
+                    const { jsPDF } = window.jspdf;
+                    const orientation = document.getElementById('pdf-orientation').value;
+                    const format = document.getElementById('pdf-format').value;
+                    const doc = new jsPDF({ orientation, format });
+
+                    let textToRender = document.getElementById('txt-direct-input').value;
+                    if (loadedDocFile && !textToRender) {
+                        textToRender = await loadedDocFile.text();
+                    }
+                    if (!textToRender) textToRender = "OmniStudio Converted Content";
+
+                    const lines = doc.splitTextToSize(textToRender, 180);
+                    doc.text(lines, 10, 10);
+
+                    convertedBlob = doc.output('blob');
+                    convertedFileName = (loadedDocFile ? loadedDocFile.name.replace(/\.[^/.]+$/, "") : "document") + ".pdf";
+
+                } else if (currentDocMode === 'img-to-pdf') {
+                    if (!loadedDocFile) return;
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    const imgUrl = URL.createObjectURL(loadedDocFile);
+                    const img = new Image();
+                    img.src = imgUrl;
+
+                    await new Promise((res) => { img.onload = res; });
+
+                    const w = doc.internal.pageSize.getWidth() - 20;
+                    const h = (img.height * w) / img.width;
+
+                    doc.addImage(img, 'JPEG', 10, 10, w, h);
+                    convertedBlob = doc.output('blob');
+                    convertedFileName = loadedDocFile.name.replace(/\.[^/.]+$/, "") + ".pdf";
+                }
+
+                progressBar.style.width = '100%';
+                progressPercent.innerText = '100%';
+                progressStatus.innerText = 'Conversion Complete!';
+
+                btnDownload.classList.remove('hidden');
+                document.getElementById('doc-download-label').innerText = `DOWNLOAD ${convertedFileName.toUpperCase()}`;
+                btnDownload.onclick = (e) => {
+                    triggerPartyPopper(e);
+                    downloadFile(convertedBlob, convertedFileName);
+                };
+
+            } catch (err) {
+                console.error(err);
+                progressStatus.innerText = 'Failed to process document.';
+            } finally {
+                btnConvert.removeAttribute('disabled');
+            }
+        }
+
+        function handleCropImageSelect(file) {
+            if (!file || !file.type.startsWith('image/')) return;
+            const previewUrl = URL.createObjectURL(file);
+            const thumb = document.getElementById('crop-selected-thumb');
+            const preview = document.getElementById('crop-selected-preview');
+            if (thumb.dataset.objectUrl) URL.revokeObjectURL(thumb.dataset.objectUrl);
+            thumb.dataset.objectUrl = previewUrl;
+            thumb.src = previewUrl;
+            document.getElementById('crop-selected-name').textContent = file.name;
+            preview.classList.remove('hidden');
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                cropSourceImg = new Image();
+                cropSourceImg.onload = () => {
+                    document.getElementById('crop-empty-placeholder').classList.add('hidden');
+                    const canvas = document.getElementById('shape-crop-canvas');
+                    canvas.classList.remove('hidden');
+                    document.getElementById('btn-download-cropped').removeAttribute('disabled');
+                    panOffsetX = 0;
+                    panOffsetY = 0;
+                    requestCanvasUpdate();
+                };
+                cropSourceImg.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function setCropShape(shape) {
+            currentCropShape = shape;
+            document.querySelectorAll('.shape-btn').forEach(btn => {
+                btn.classList.remove('border-neon-cyan', 'bg-cyan-950/30');
+                const icon = btn.querySelector('i');
+                if (icon) icon.classList.replace('text-neon-cyan', 'text-slate-300');
+            });
+            const activeBtn = document.querySelector(`[data-shape="${shape}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('border-neon-cyan', 'bg-cyan-950/30');
+                const icon = activeBtn.querySelector('i');
+                if (icon) icon.classList.replace('text-slate-300', 'text-neon-cyan');
+            }
+            
+            const radiusGroup = document.getElementById('corner-radius-group');
+            if (shape === 'rounded') radiusGroup.classList.remove('hidden');
+            else radiusGroup.classList.add('hidden');
+
+            requestCanvasUpdate();
+        }
+
+        function setupCanvasPanEvents() {
+            const canvas = document.getElementById('shape-crop-canvas');
+            
+            const startPan = (x, y) => {
+                isDragging = true;
+                dragStartX = x - panOffsetX;
+                dragStartY = y - panOffsetY;
+            };
+
+            const movePan = (x, y) => {
+                if (!isDragging) return;
+                panOffsetX = x - dragStartX;
+                panOffsetY = y - dragStartY;
+                requestCanvasUpdate();
+            };
+
+            const endPan = () => { isDragging = false; };
+
+            canvas.addEventListener('mousedown', (e) => startPan(e.clientX, e.clientY));
+            window.addEventListener('mousemove', (e) => movePan(e.clientX, e.clientY));
+            window.addEventListener('mouseup', endPan);
+
+            canvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) startPan(e.touches[0].clientX, e.touches[0].clientY);
+            }, { passive: true });
+            window.addEventListener('touchmove', (e) => {
+                if (isDragging && e.touches.length === 1) movePan(e.touches[0].clientX, e.touches[0].clientY);
+            }, { passive: true });
+            window.addEventListener('touchend', endPan);
+        }
+
+        function requestCanvasUpdate() {
+            if (!renderRequested) {
+                renderRequested = true;
+                requestAnimationFrame(drawCropCanvas);
+            }
+        }
+
+        function drawCropCanvas() {
+            renderRequested = false;
+            if (!cropSourceImg.src) return;
+
+            const canvas = document.getElementById('shape-crop-canvas');
+            const ctx = canvas.getContext('2d');
+
+            const zoom = parseFloat(document.getElementById('slider-zoom').value) / 100;
+            const rotate = parseFloat(document.getElementById('slider-rotate').value);
+            const radius = parseFloat(document.getElementById('slider-radius').value);
+            const brightness = parseFloat(document.getElementById('slider-brightness').value);
+            const contrast = parseFloat(document.getElementById('slider-contrast').value);
+            const clarity = parseFloat(document.getElementById('slider-clarity').value);
+            const sharpen = parseFloat(document.getElementById('slider-sharpen').value);
+            const aspectRatio = document.getElementById('crop-aspect-ratio').value;
+
+            document.getElementById('val-zoom').innerText = `${Math.round(zoom * 100)}%`;
+            document.getElementById('val-rotate').innerText = `${rotate}°`;
+            document.getElementById('val-radius').innerText = `${radius}px`;
+            document.getElementById('val-brightness').innerText = `${brightness}%`;
+            document.getElementById('val-contrast').innerText = `${contrast}%`;
+            document.getElementById('val-clarity').innerText = `${Math.round(clarity)}`;
+            document.getElementById('val-sharpen').innerText = `${Math.round(sharpen)}`;
+
+            let w = cropSourceImg.width;
+            let h = cropSourceImg.height;
+
+            if (aspectRatio === '1:1') {
+                w = h = Math.min(cropSourceImg.width, cropSourceImg.height);
+            } else if (aspectRatio === '16:9') {
+                h = w * (9 / 16);
+            } else if (aspectRatio === '4:3') {
+                h = w * (3 / 4);
+            }
+
+            canvas.width = w;
+            canvas.height = h;
+
+            ctx.clearRect(0, 0, w, h);
+            ctx.save();
+
+            applyShapePath(ctx, currentCropShape, w, h, radius);
+            ctx.clip();
+
+            ctx.filter = `brightness(${brightness}%) contrast(${Math.min(220, contrast + clarity * 0.35)}%)`;
+
+            ctx.translate(w / 2 + panOffsetX, h / 2 + panOffsetY);
+            ctx.rotate((rotate * Math.PI) / 180);
+            ctx.scale(zoom, zoom);
+
+            ctx.drawImage(cropSourceImg, -cropSourceImg.width / 2, -cropSourceImg.height / 2);
+
+            ctx.restore();
+
+            // Lightweight unsharp-mask approximation. Disabled at zero; bounded
+            // to avoid excessive work on very large images while dragging sliders.
+            if (sharpen > 0 && w * h <= 1800000) {
+                const imageData = ctx.getImageData(0, 0, w, h);
+                const src = imageData.data;
+                const copy = new Uint8ClampedArray(src);
+                const amount = sharpen / 100 * 0.85;
+                for (let y = 1; y < h - 1; y++) {
+                    for (let x = 1; x < w - 1; x++) {
+                        const i = (y * w + x) * 4;
+                        for (let c = 0; c < 3; c++) {
+                            const blur = (copy[i - 4 + c] + copy[i + 4 + c] +
+                                copy[i - w * 4 + c] + copy[i + w * 4 + c]) / 4;
+                            src[i + c] = Math.max(0, Math.min(255, copy[i + c] + (copy[i + c] - blur) * amount));
+                        }
+                    }
+                }
+                ctx.putImageData(imageData, 0, 0);
+            }
+        }
+
+        function applyShapePath(ctx, shape, w, h, radius) {
+            ctx.beginPath();
+            if (shape === 'rect') {
+                ctx.rect(0, 0, w, h);
+            } else if (shape === 'circle') {
+                ctx.arc(w / 2, h / 2, Math.min(w, h) / 2, 0, Math.PI * 2);
+            } else if (shape === 'oval') {
+                ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+            } else if (shape === 'rounded') {
+                const r = (radius / 100) * (Math.min(w, h) / 2);
+                ctx.roundRect(0, 0, w, h, r);
+            } else if (shape === 'star') {
+                const cx = w / 2, cy = h / 2, outerR = Math.min(w, h) / 2, innerR = outerR / 2.5;
+                for (let i = 0; i < 10; i++) {
+                    const r = i % 2 === 0 ? outerR : innerR;
+                    const a = (i * Math.PI) / 5 - Math.PI / 2;
+                    ctx[i === 0 ? 'moveTo' : 'lineTo'](cx + r * Math.cos(a), cy + r * Math.sin(a));
+                }
+                ctx.closePath();
+            } else if (shape === 'heart') {
+                const cx = w / 2, cy = h / 2, topHeight = h * 0.3;
+                ctx.moveTo(cx, cy + h * 0.35);
+                ctx.bezierCurveTo(cx, cy + h * 0.3, cx - w * 0.45, cy + h * 0.1, cx - w * 0.45, cy - topHeight / 2);
+                ctx.bezierCurveTo(cx - w * 0.45, cy - topHeight * 1.3, cx, cy - topHeight * 1.3, cx, cy - topHeight / 3);
+                ctx.bezierCurveTo(cx, cy - topHeight * 1.3, cx + w * 0.45, cy - topHeight * 1.3, cx + w * 0.45, cy - topHeight / 2);
+                ctx.bezierCurveTo(cx + w * 0.45, cy + h * 0.1, cx, cy + h * 0.3, cx, cy + h * 0.35);
+                ctx.closePath();
+            } else if (shape === 'hexagon') {
+                const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2;
+                for (let i = 0; i < 6; i++) {
+                    const a = (i * Math.PI) / 3;
+                    ctx[i === 0 ? 'moveTo' : 'lineTo'](cx + r * Math.cos(a), cy + r * Math.sin(a));
+                }
+                ctx.closePath();
+            } else if (shape === 'diamond') {
+                ctx.moveTo(w / 2, 0);
+                ctx.lineTo(w, h / 2);
+                ctx.lineTo(w / 2, h);
+                ctx.lineTo(0, h / 2);
+                ctx.closePath();
+            }
+        }
+
+        function triggerCropDownload(e) {
+            triggerPartyPopper(e);
+            const canvas = document.getElementById('shape-crop-canvas');
+            const format = document.getElementById('crop-export-format').value;
+            canvas.toBlob((blob) => {
+                downloadFile(blob, `luxury-crop.${format}`);
+            }, `image/${format}`);
+        }
+
+        function handleImageToolSelect(file) {
+            loadedImgFile = file;
+            document.getElementById('img-file-name').innerText = file.name;
+            document.getElementById('img-file-size').innerText = `(${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+            const pill = document.getElementById('img-file-pill');
+            pill.classList.remove('hidden');
+            pill.classList.add('flex');
+            document.getElementById('btn-process-img').removeAttribute('disabled');
+            document.getElementById('img-size-estimation').classList.remove('hidden');
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                formatSourceImg = new Image();
+                formatSourceImg.onload = () => {
+                    document.getElementById('img-empty-placeholder').classList.add('hidden');
+                    document.getElementById('img-tool-canvas').classList.remove('hidden');
+                    updateLiveImagePreview();
+                };
+                formatSourceImg.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function updateLiveImagePreview() {
+            if (!formatSourceImg.src || !loadedImgFile) return;
+
+            const targetFormat = document.getElementById('target-img-format').value;
+            const qualityVal = parseInt(document.getElementById('slider-quality').value);
+            document.getElementById('val-quality').innerText = qualityVal + '%';
+
+            const canvas = document.getElementById('img-tool-canvas');
+            canvas.width = formatSourceImg.width;
+            canvas.height = formatSourceImg.height;
+            const ctx = canvas.getContext('2d');
+
+            if (targetFormat === 'image/jpeg') {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            ctx.drawImage(formatSourceImg, 0, 0);
+
+            canvas.toBlob((blob) => {
+                if (!blob) return;
+                const origSize = loadedImgFile.size;
+                const estSize = blob.size;
+                const percent = (((estSize - origSize) / origSize) * 100).toFixed(1);
+                
+                document.getElementById('orig-size-label').innerText = formatBytes(origSize);
+                document.getElementById('est-size-label').innerText = `${formatBytes(estSize)} (${percent > 0 ? '+' : ''}${percent}%)`;
+            }, targetFormat, qualityVal / 100);
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function processImageConversion(e) {
+            if (!loadedImgFile || !formatSourceImg.src) return;
+            triggerPartyPopper(e);
+
+            const targetFormat = document.getElementById('target-img-format').value;
+            const quality = parseFloat(document.getElementById('slider-quality').value) / 100;
+            const ext = targetFormat.split('/')[1];
+
+            const canvas = document.getElementById('img-tool-canvas');
+            canvas.toBlob((blob) => {
+                downloadFile(blob, `converted.${ext}`);
+            }, targetFormat, quality);
+        }
+
+
+        // ==========================================================
+        // HYBRID IMAGE FORENSICS: ONNX VISION MODEL + METADATA + PIXEL CUES
+        // ==========================================================
+        let aiDetectorFile = null;
+        const AI_DETECTRA_MODEL_URL = 'https://huggingface.co/TensorFold/detectra-v1/resolve/main/model.onnx';
+        let aiDetectraSessionPromise = null;
+
+        // Updates the compact model's download/initialization indicator.
+        // Safe to call even if the progress panel is not present in a customized page.
+        function aiSetModelDownloadProgress(model, status, percentValue) {
+            const key = String(model || 'detectra').toLowerCase();
+            const pct = document.getElementById('model-progress-' + key + '-pct');
+            const bar = document.getElementById('model-progress-' + key + '-bar');
+            const label = document.getElementById('model-progress-' + key + '-status');
+            let progress = Number(percentValue);
+            if (!Number.isFinite(progress)) {
+                const match = String(status || '').match(/(\d{1,3})%/);
+                progress = match ? Number(match[1]) : 0;
+            }
+            progress = Math.max(0, Math.min(100, progress));
+            if (pct) pct.textContent = Math.round(progress) + '%';
+            if (bar) bar.style.width = progress + '%';
+            if (label && status) label.textContent = String(status);
+        }
+
+
+        // Persist the model per website origin + browser profile. This prevents a
+        // repeat download after closing/reopening the site on the same device.
+        const AI_MODEL_DB_NAME = 'omnistudio-local-assets';
+        const AI_MODEL_DB_VERSION = 1;
+        const AI_MODEL_STORE = 'models';
+        const AI_MODEL_CACHE_KEY = 'detectra-compact-v1';
+
+        function aiOpenModelDB() {
+            return new Promise((resolve, reject) => {
+                if (!('indexedDB' in window)) return reject(new Error('Persistent browser storage unavailable'));
+                const request = indexedDB.open(AI_MODEL_DB_NAME, AI_MODEL_DB_VERSION);
+                request.onupgradeneeded = () => {
+                    const db = request.result;
+                    if (!db.objectStoreNames.contains(AI_MODEL_STORE)) db.createObjectStore(AI_MODEL_STORE);
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error || new Error('Could not open local model storage'));
+            });
+        }
+
+        async function aiReadCachedModel() {
+            let db;
+            try {
+                db = await aiOpenModelDB();
+                return await new Promise((resolve, reject) => {
+                    const tx = db.transaction(AI_MODEL_STORE, 'readonly');
+                    const req = tx.objectStore(AI_MODEL_STORE).get(AI_MODEL_CACHE_KEY);
+                    req.onsuccess = () => resolve(req.result ? new Uint8Array(req.result) : null);
+                    req.onerror = () => reject(req.error);
+                });
+            } catch (_) { return null; }
+            finally { if (db) db.close(); }
+        }
+
+        async function aiSaveCachedModel(bytes) {
+            let db;
+            try {
+                db = await aiOpenModelDB();
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction(AI_MODEL_STORE, 'readwrite');
+                    tx.objectStore(AI_MODEL_STORE).put(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), AI_MODEL_CACHE_KEY);
+                    tx.oncomplete = resolve;
+                    tx.onerror = () => reject(tx.error);
+                    tx.onabort = () => reject(tx.error || new Error('Storage transaction aborted'));
+                });
+                return true;
+            } catch (e) {
+                console.warn('Persistent model cache unavailable; browser HTTP cache may still help:', e);
+                return false;
+            } finally { if (db) db.close(); }
+        }
+
+        // Detectra v3: modern-generator + in-the-wild/social-media training.
+        // Preprocess as documented by its model card: shortest edge 440, center crop 384,
+        // RGB [0,1], ImageNet mean/std, NCHW float32. Image bytes never leave this browser.
+        async function aiGetDetectraSession(onStatus) {
+            if (!aiDetectraSessionPromise) {
+                const load = (async () => {
+                    onStatus && onStatus('Loading ONNX Runtime Web engine...');
+                    let ort, importError;
+                    const runtimeUrls = [
+                        'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/esm/ort.min.js',
+                        'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/+esm',
+                        'https://esm.sh/onnxruntime-web@1.22.0',
+                        'https://unpkg.com/onnxruntime-web@1.22.0/dist/esm/ort.min.js'
+                    ];
+                    for (const runtimeUrl of runtimeUrls) {
+                        try { ort = await import(runtimeUrl); if (ort && ort.default && !ort.InferenceSession) ort = ort.default; break; }
+                        catch (e) { importError = e; }
+                    }
+                    // Standalone HTML fallback: load the browser UMD build if ESM CDN imports fail.
+                    if (!ort || !ort.InferenceSession) {
+                        try {
+                            await new Promise((resolve, reject) => {
+                                const script = document.createElement('script');
+                                script.src = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js';
+                                script.onload = resolve;
+                                script.onerror = () => reject(new Error('ONNX Runtime UMD script failed to load'));
+                                document.head.appendChild(script);
+                            });
+                            ort = window.ort || ort;
+                        } catch (e) { importError = e; }
+                    }
+                    if (!ort || !ort.InferenceSession) throw new Error('ONNX Runtime could not load from available CDNs: ' + String(importError || 'network error'));
+                    try {
+                        ort.env.wasm.numThreads = 1;
+                        ort.env.wasm.proxy = false;
+                        // Required when the page is opened as a standalone HTML file.
+                        ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/';
+                    } catch (_) {}
+
+                    onStatus && onStatus('Processing Model');
+                    let modelBytes = await aiReadCachedModel();
+                    if (!modelBytes || modelBytes.byteLength < 1000000) {
+                        const controller = new AbortController();
+                        const timer = setTimeout(() => controller.abort(), 120000);
+                        try {
+                            const response = await fetch(AI_DETECTRA_MODEL_URL, { signal: controller.signal, cache: 'force-cache' });
+                            if (!response.ok) throw new Error('Required processing asset returned HTTP ' + response.status);
+                            if (!response.body || !response.body.getReader) {
+                                modelBytes = new Uint8Array(await response.arrayBuffer());
+                                onStatus && onStatus('Processing Model 70%');
+                            } else {
+                                const reader = response.body.getReader();
+                                const total = Number(response.headers.get('content-length')) || 0;
+                                const chunks = [];
+                                let received = 0;
+                                while (true) {
+                                    const part = await reader.read();
+                                    if (part.done) break;
+                                    chunks.push(part.value);
+                                    received += part.value.length;
+                                    if (total) onStatus && onStatus('Processing Model ' + Math.round(received / total * 70) + '%');
+                                }
+                                modelBytes = new Uint8Array(received);
+                                let offset = 0;
+                                for (const chunk of chunks) { modelBytes.set(chunk, offset); offset += chunk.length; }
+                            }
+                        } catch (e) {
+                            if (e && e.name === 'AbortError') throw new Error('Processing setup timed out. Check your internet connection and retry.');
+                            throw new Error('Could not prepare local processing assets: ' + String(e && e.message || e));
+                        } finally { clearTimeout(timer); }
+                        if (modelBytes && modelBytes.byteLength >= 1000000) await aiSaveCachedModel(modelBytes);
+                    } else {
+                        onStatus && onStatus('Processing Model 70%');
+                    }
+
+                    if (!modelBytes || modelBytes.byteLength < 1000000) throw new Error('Model download was incomplete or returned an invalid file.');
+                    onStatus && onStatus('Processing Model 85%');
+                    let session;
+                    const providers = (typeof navigator !== 'undefined' && navigator.gpu) ? ['webgpu', 'wasm'] : ['wasm'];
+                    try {
+                        session = await ort.InferenceSession.create(modelBytes, {
+                            executionProviders: providers,
+                            graphOptimizationLevel: 'all'
+                        });
+                    } catch (providerError) {
+                        if (providers[0] === 'webgpu') {
+                            onStatus && onStatus('Processing Model 90%');
+                            session = await ort.InferenceSession.create(modelBytes, {
+                                executionProviders: ['wasm'],
+                                graphOptimizationLevel: 'all'
+                            });
+                        } else {
+                            throw providerError;
+                        }
+                    }
+                    onStatus && onStatus('Processing Model 100%');
+                    return { ort, session };
+                })();
+                aiDetectraSessionPromise = Promise.race([
+                    load,
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Detectra initialization timed out after 150 seconds.')), 150000))
+                ]).catch(err => {
+                    aiDetectraSessionPromise = null;
+                    throw err;
+                });
+            }
+            return await aiDetectraSessionPromise;
+        }
+
+        async function aiRunDetectra(file, onStatus) {
+            const { ort, session } = await aiGetDetectraSession(onStatus);
+            const objectUrl = URL.createObjectURL(file);
+            try {
+                onStatus && onStatus('Preparing image...');
+                const img = await new Promise((resolve, reject) => {
+                    const image = new Image();
+                    image.onload = () => resolve(image);
+                    image.onerror = () => reject(new Error('Browser could not decode this image format.'));
+                    image.src = objectUrl;
+                });
+                const scale = 440 / Math.min(img.naturalWidth, img.naturalHeight);
+                const rw = Math.max(440, Math.round(img.naturalWidth * scale));
+                const rh = Math.max(440, Math.round(img.naturalHeight * scale));
+                const resized = document.createElement('canvas');
+                resized.width = rw; resized.height = rh;
+                const rctx = resized.getContext('2d', { willReadFrequently: true });
+                rctx.imageSmoothingEnabled = true;
+                rctx.imageSmoothingQuality = 'high';
+                rctx.drawImage(img, 0, 0, rw, rh);
+                const crop = document.createElement('canvas');
+                crop.width = 384; crop.height = 384;
+                const cctx = crop.getContext('2d', { willReadFrequently: true });
+                const sx = Math.max(0, Math.floor((rw - 384) / 2));
+                const sy = Math.max(0, Math.floor((rh - 384) / 2));
+                cctx.drawImage(resized, sx, sy, 384, 384, 0, 0, 384, 384);
+                const pixels = cctx.getImageData(0, 0, 384, 384).data;
+                const input = new Float32Array(1 * 3 * 384 * 384);
+                const mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225];
+                const plane = 384 * 384;
+                for (let i = 0; i < plane; i++) {
+                    input[i] = ((pixels[i * 4] / 255) - mean[0]) / std[0];
+                    input[plane + i] = ((pixels[i * 4 + 1] / 255) - mean[1]) / std[1];
+                    input[plane * 2 + i] = ((pixels[i * 4 + 2] / 255) - mean[2]) / std[2];
+                }
+                onStatus && onStatus('Processing Model');
+                const tensor = new ort.Tensor('float32', input, [1, 3, 384, 384]);
+                const inputName = session.inputNames[0];
+                const outputs = await session.run({ [inputName]: tensor });
+                const outName = session.outputNames[0];
+                const data = outputs[outName].data;
+                const raw = Number(data[0]);
+                const pAI = 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, raw)))); // Detectra output is a logit; always apply sigmoid.
+                return { pAI: Math.max(0, Math.min(1, pAI)) };
+            } finally { URL.revokeObjectURL(objectUrl); }
+        }
+
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('ai-file-input');
+            const zone = document.getElementById('ai-dropzone');
+            zone.addEventListener('click', () => input.click());
+            input.addEventListener('change', e => {
+                if (e.target.files && e.target.files[0]) selectAIDetectorFile(e.target.files[0]);
+            });
+            zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('border-neon-cyan'); });
+            zone.addEventListener('dragleave', () => zone.classList.remove('border-neon-cyan'));
+            zone.addEventListener('drop', e => {
+                e.preventDefault();
+                zone.classList.remove('border-neon-cyan');
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) selectAIDetectorFile(e.dataTransfer.files[0]);
+            });
+        });
+
+        function selectAIDetectorFile(file) {
+            if (!file || (!file.type.startsWith('image/') && !/\.(jpe?g|png|webp|tiff?|avif|heic)$/i.test(file.name))) {
+                alert('Please select a supported image file.');
+                return;
+            }
+            aiDetectorFile = file;
+            const aiThumb = document.getElementById('ai-selected-thumb');
+            const aiPreview = document.getElementById('ai-selected-preview');
+            if (aiThumb.dataset.objectUrl) URL.revokeObjectURL(aiThumb.dataset.objectUrl);
+            const aiObjectUrl = URL.createObjectURL(file);
+            aiThumb.dataset.objectUrl = aiObjectUrl;
+            aiThumb.src = aiObjectUrl;
+            document.getElementById('ai-selected-name').textContent = file.name;
+            aiPreview.classList.remove('hidden');
+            document.getElementById('ai-file-name').textContent = file.name;
+            document.getElementById('ai-file-size').textContent = '(' + formatBytes(file.size) + ')';
+            document.getElementById('ai-file-pill').classList.remove('hidden');
+            document.getElementById('ai-file-pill').classList.add('flex');
+            document.getElementById('btn-analyze-ai').disabled = false;
+            document.getElementById('ai-verdict').textContent = 'READY TO ANALYZE';
+            document.getElementById('ai-summary').textContent = 'Image selected. Click Analyze Image to inspect metadata and signatures.';
+            const findings = document.getElementById('ai-findings');
+            if (findings) findings.innerHTML = '';
+            const details = document.getElementById('ai-details');
+            if (details) details.classList.add('hidden');
+            document.getElementById('ai-progress-wrap').classList.add('hidden');
+        }
+
+        function aiReadAscii(bytes, start, length) {
+            let out = '';
+            for (let i = start; i < Math.min(start + length, bytes.length); i++) out += String.fromCharCode(bytes[i]);
+            return out;
+        }
+
+        function aiBytesToText(bytes, start, length) {
+            try { return new TextDecoder('utf-8', { fatal: false }).decode(bytes.subarray(start, Math.min(start + length, bytes.length))); }
+            catch (_) { return aiReadAscii(bytes, start, length); }
+        }
+
+        function aiExtractExifFromTiff(bytes, start, length) {
+            const end = Math.min(bytes.length, start + length);
+            if (start + 8 > end) return {};
+            const little = bytes[start] === 0x49 && bytes[start + 1] === 0x49;
+            const big = bytes[start] === 0x4d && bytes[start + 1] === 0x4d;
+            if (!little && !big) return {};
+            const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+            const u16 = p => view.getUint16(p, little);
+            const u32 = p => view.getUint32(p, little);
+            if (u16(start + 2) !== 42) return {};
+            const base = start;
+            const readIfd = offset => {
+                const result = {};
+                const pos = base + offset;
+                if (pos + 2 > end) return result;
+                const count = Math.min(u16(pos), 512);
+                const names = { 0x010F:'Camera make', 0x0110:'Camera model', 0x0112:'Orientation', 0x0131:'Software', 0x0132:'Date/time', 0x829A:'Exposure time', 0x829D:'F-number', 0x8827:'ISO', 0x9003:'Original date/time', 0x9209:'Flash', 0xA433:'Lens make', 0xA434:'Lens model', 0x9201:'Shutter speed', 0x9202:'Aperture', 0x9204:'Exposure bias', 0x920A:'Focal length', 0x8822:'Exposure program', 0x9207:'Metering mode', 0xA405:'Focal length in 35mm', 0xA403:'White balance', 0x013B:'Artist', 0x010E:'Image description' };
+                const typeSize = {1:1,2:1,3:2,4:4,5:8,7:1,9:4,10:8};
+                for (let i = 0; i < count; i++) {
+                    const e = pos + 2 + i * 12;
+                    if (e + 12 > end) break;
+                    const tag = u16(e), type = u16(e + 2), n = u32(e + 4);
+                    if (!names[tag] || !typeSize[type] || n > 10000) continue;
+                    const total = n * typeSize[type];
+                    const dataPos = total <= 4 ? e + 8 : base + u32(e + 8);
+                    if (dataPos < base || dataPos + Math.min(total, 1024) > end) continue;
+                    let value = '';
+                    if (type === 2) value = aiBytesToText(bytes, dataPos, Math.min(n, 200)).replace(/\0/g, '').trim();
+                    else if (type === 3) value = String(u16(dataPos));
+                    else if (type === 4) value = String(u32(dataPos));
+                    else if (type === 5 || type === 10) {
+                        const a = u32(dataPos), b = u32(dataPos + 4);
+                        value = b ? (a + '/' + b) : '';
+                    } else value = String(bytes[dataPos]);
+                    if (value) result[names[tag]] = value;
+                }
+                return result;
+            };
+            const result = readIfd(u32(base + 4));
+            const ifd0 = base + u32(base + 4);
+            if (ifd0 + 2 <= end) {
+                const count = Math.min(u16(ifd0), 512);
+                for (let i=0;i<count;i++) {
+                    const e=ifd0+2+i*12;
+                    if (e+12>end) break;
+                    if (u16(e) === 0x8769) {
+                        Object.assign(result, readIfd(u32(e+8)));
+                        break;
+                    }
+                }
+            }
+            return result;
+        }
+
+        async function aiInspectFile(file) {
+            const buffer = await file.arrayBuffer();
+            const bytes = new Uint8Array(buffer);
+            // Metadata/provenance markers are stored near the container headers; cap the generic text scan to avoid allocating a huge string for large photos.
+            const text = aiBytesToText(bytes, 0, Math.min(bytes.length, 8 * 1024 * 1024));
+            const lower = text.toLowerCase();
+            const meta = {};
+            const flags = { exif:false, icc:false, xmp:false, c2pa:false, camera:false, software:[] };
+            const generatorPatterns = [
+                /midjourney(?:\s|_|-)?v?\d+(?:\.\d+)*/ig,
+                /stable diffusion/ig, /stability\.ai/ig, /adobe firefly/ig,
+                /dall[- ]?e(?:\s*\d+)?/ig, / leonardo\.ai/ig, /flux(?:\.1)?/ig,
+                /comfyui/ig, /automatic1111/ig, /novelai/ig
+            ];
+            const generatorHits = new Set();
+            for (const re of generatorPatterns) {
+                const matches = text.match(re) || [];
+                matches.forEach(m => generatorHits.add(m.trim()));
+            }
+
+            // JPEG: inspect APP1 (EXIF/XMP), APP2 (ICC), APP11 (JUMBF/C2PA).
+            if (bytes[0] === 0xFF && bytes[1] === 0xD8) {
+                let p = 2;
+                while (p + 4 < bytes.length && bytes[p] === 0xFF) {
+                    const marker = bytes[p + 1];
+                    if (marker === 0xDA || marker === 0xD9) break;
+                    const len = (bytes[p+2] << 8) | bytes[p+3];
+                    if (len < 2 || p + 2 + len > bytes.length) break;
+                    const s = p + 4, n = len - 2;
+                    const sig = aiReadAscii(bytes, s, Math.min(n, 32));
+                    if (marker === 0xE1 && sig.startsWith('Exif\0\0')) {
+                        flags.exif = true;
+                        Object.assign(meta, aiExtractExifFromTiff(bytes, s + 6, n - 6));
+                    }
+                    if (marker === 0xE1 && sig.startsWith('http://ns.adobe.com/xap/1.0/')) flags.xmp = true;
+                    if (marker === 0xE2 && sig.startsWith('ICC_PROFILE')) flags.icc = true;
+                    if ((marker === 0xEB || marker === 0xEF) && /jumbf|c2pa/i.test(aiBytesToText(bytes,s,n))) flags.c2pa = true;
+                    p += 2 + len;
+                }
+            }
+
+            // PNG chunks: eXIf, iCCP, iTXt/tEXt and C2PA/JUMBF markers.
+            const pngSig = [137,80,78,71,13,10,26,10];
+            if (pngSig.every((v,i) => bytes[i] === v)) {
+                let p = 8;
+                while (p + 12 <= bytes.length) {
+                    const len = new DataView(buffer).getUint32(p);
+                    if (len > bytes.length || p + 12 + len > bytes.length) break;
+                    const type = aiReadAscii(bytes,p+4,4);
+                    if (type === 'eXIf') {
+                        flags.exif = true;
+                        Object.assign(meta, aiExtractExifFromTiff(bytes,p+8,len));
+                    }
+                    if (type === 'iCCP') flags.icc = true;
+                    if (type === 'iTXt' || type === 'tEXt' || type === 'zTXt') flags.xmp = flags.xmp || /xmp|xml/i.test(aiBytesToText(bytes,p+8,Math.min(len,4096)));
+                    if (/jumb|c2pa/i.test(type + aiBytesToText(bytes,p+8,Math.min(len,128)))) flags.c2pa = true;
+                    p += 12 + len;
+                    if (type === 'IEND') break;
+                }
+            }
+
+            // WebP RIFF chunks.
+            if (aiReadAscii(bytes,0,4) === 'RIFF' && aiReadAscii(bytes,8,4) === 'WEBP') {
+                let p=12;
+                while (p+8<=bytes.length) {
+                    const type=aiReadAscii(bytes,p,4);
+                    const len=new DataView(buffer).getUint32(p+4,true);
+                    if (len > bytes.length || p+8+len > bytes.length) break;
+                    if (type === 'EXIF') {
+                        flags.exif=true;
+                        let off=p+8;
+                        if (aiReadAscii(bytes,off,6)==='Exif\0\0') off+=6;
+                        Object.assign(meta,aiExtractExifFromTiff(bytes,off,len-(off-(p+8))));
+                    }
+                    if (type === 'ICCP') flags.icc=true;
+                    if (type === 'XMP ') flags.xmp=true;
+                    if (/JUMB|C2PA/i.test(type)) flags.c2pa=true;
+                    p += 8 + len + (len % 2);
+                }
+            }
+
+            // Generic marker scan, including embedded C2PA manifest labels and software tags.
+            if (/c2pa|content credentials|contentcredentials/i.test(lower)) flags.c2pa = true;
+            if (/icc_profile|icc profile|profile description/i.test(lower)) flags.icc = true;
+            if (/xmpmeta|adobe:ns:meta/i.test(lower)) flags.xmp = true;
+            // Keep software evidence tied to extracted metadata, not arbitrary compressed pixels.
+            const softwareMatches = text.match(/(?:software|creator tool|processing software)[\s:=\0]{1,12}[^\0\r\n]{2,100}/ig) || [];
+            flags.software = softwareMatches.map(s => s.replace(/\0/g,' ').trim()).slice(0,8);
+            const makeModel = Boolean(meta['Camera make'] || meta['Camera model']);
+            flags.camera = makeModel;
+
+            const metadataText = (Object.values(meta).join(' ') + ' ' + flags.software.join(' ')).toLowerCase();
+            const trustedGeneratorHits = [];
+            const generatorNames = ['midjourney','stable diffusion','stability.ai','adobe firefly','dall-e','leonardo.ai','comfyui','automatic1111','novelai','dreamstudio'];
+            for (const name of generatorNames) {
+                if (metadataText.includes(name)) trustedGeneratorHits.push(name);
+            }
+            return { meta, flags, generatorHits:trustedGeneratorHits, bytes:bytes.length, type:file.type || 'Unknown' };
+        }
+
+        function closeAIResultModal() { document.getElementById('ai-result-modal').classList.add('hidden'); }
+
+        async function aiYield() { return new Promise(resolve => setTimeout(resolve, 180)); }
+
+        async function aiPixelInspection(file) {
+            const url = URL.createObjectURL(file);
+            try {
+                const img = await new Promise((resolve, reject) => {
+                    const image = new Image(); image.onload = () => resolve(image); image.onerror = reject; image.src = url;
+                });
+                const scale = Math.min(1, 256 / Math.max(img.naturalWidth, img.naturalHeight));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+                canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                const w=canvas.width,h=canvas.height, lum=new Float32Array(w*h);
+                let samples=0,sum=0,sumSq=0; const bins=new Uint32Array(32);
+                for(let y=0;y<h;y++) for(let x=0;x<w;x++) {
+                    const i=(y*w+x)*4, l=.2126*data[i]+.7152*data[i+1]+.0722*data[i+2];
+                    lum[y*w+x]=l; sum+=l; sumSq+=l*l; samples++; bins[Math.min(31,Math.floor(l/8))]++;
+                }
+                let edge=0,edgeSq=0,edgeN=0,lap=0,lapSq=0,lapN=0,block=0,blockBase=0,blockN=0;
+                let chroma=0,chromaBase=0,chromaN=0;
+                const patchVars=[]; const patch=32;
+                for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) {
+                    const i=y*w+x, l=lum[i], dx=lum[i+1]-lum[i-1], dy=lum[i+w]-lum[i-w];
+                    const e=Math.abs(dx)+Math.abs(dy); edge+=e; edgeSq+=e*e; edgeN++;
+                    const r=4*l-lum[i-1]-lum[i+1]-lum[i-w]-lum[i+w]; lap+=r; lapSq+=r*r; lapN++;
+                    if(x%8===0){block+=Math.abs(l-lum[i-1]);blockBase+=Math.abs(dx);blockN++;}
+                    const j=i*4, jl=(i-1)*4;
+                    const rg=(data[j]-data[j+1])-(data[jl]-data[jl+1]);
+                    chroma+=Math.abs(rg); chromaBase+=Math.abs(data[j]-data[jl]); chromaN++;
+                }
+                for(let py=0;py<h;py+=patch) for(let px=0;px<w;px+=patch){
+                    let n=0,a=0,b=0;
+                    for(let y=py;y<Math.min(h,py+patch);y+=2) for(let x=px;x<Math.min(w,px+patch);x+=2){const v=lum[y*w+x];a+=v;b+=v*v;n++;}
+                    if(n) patchVars.push(Math.max(0,b/n-(a/n)**2));
+                }
+                const mean=samples?sum/samples:0, variance=samples?Math.max(0,sumSq/samples-mean*mean):0;
+                const entropy=bins.reduce((acc,c)=>{if(!c||!samples)return acc;const q=c/samples;return acc-q*Math.log2(q);},0);
+                const em=edgeN?edge/edgeN:0, ev=edgeN?Math.max(0,edgeSq/edgeN-em*em):0;
+                const lm=lapN?lap/lapN:0, lv=lapN?Math.max(0,lapSq/lapN-lm*lm):0;
+                const pMean=patchVars.length?patchVars.reduce((a,b)=>a+b,0)/patchVars.length:0;
+                const pVar=patchVars.length?patchVars.reduce((a,b)=>a+(b-pMean)**2,0)/patchVars.length:0;
+                return {
+                    width:img.naturalWidth,height:img.naturalHeight,
+                    luminanceMean:mean.toFixed(1),luminanceStdDev:Math.sqrt(variance).toFixed(1),luminanceEntropy:entropy.toFixed(2),
+                    highFrequencyEnergy:em.toFixed(2), highPassResidualStd:Math.sqrt(lv).toFixed(2),
+                    patchVarianceCV:(pMean?Math.sqrt(pVar)/pMean:0).toFixed(3),
+                    jpegBlockBoundaryRatio:(blockN&&blockBase?block/blockN/(blockBase/blockN+0.001):0).toFixed(3),
+                    chromaticEdgeRatio:(chromaN&&chromaBase?chroma/chromaN/(chromaBase/chromaN+0.001):0).toFixed(3)
+                };
+            } finally { URL.revokeObjectURL(url); }
+        }
+
+        // Screenshot/re-share robustness views. These are deterministic local transforms, not
+        // a separately trained screenshot classifier. They let the same models inspect common
+        // resize + JPEG re-encoding variants while keeping the uploaded image on-device.
+        async function aiBuildScreenshotViews(file, onStatus) {
+            const url = URL.createObjectURL(file);
+            try {
+                const img = await new Promise((resolve, reject) => {
+                    const image = new Image(); image.onload = () => resolve(image);
+                    image.onerror = () => reject(new Error('Could not decode image for screenshot robustness pass.'));
+                    image.src = url;
+                });
+                const specs = [
+                    { max: 1600, quality: 0.88, name: 're-share-1600-q88.jpg' },
+                    { max: 1280, quality: 0.78, name: 'screenshot-1280-q78.jpg' }
+                ];
+                const views = [file];
+                for (let i = 0; i < specs.length; i++) {
+                    const spec = specs[i];
+                    const scale = Math.min(1, spec.max / Math.max(img.naturalWidth, img.naturalHeight));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+                    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+                    const ctx = canvas.getContext('2d', { alpha: false });
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', spec.quality));
+                    if (blob && blob.size) views.push(new File([blob], spec.name, { type: 'image/jpeg', lastModified: Date.now() }));
+                    onStatus && onStatus('Prepared screenshot robustness view ' + (i + 1) + ' of 2...');
+                    await aiYield();
+                }
+                return views;
+            } finally { URL.revokeObjectURL(url); }
+        }
+
+        function aiMedian(values) {
+            const a = values.filter(Number.isFinite).slice().sort((x,y)=>x-y);
+            if (!a.length) return null;
+            const m = Math.floor(a.length / 2);
+            return a.length % 2 ? a[m] : (a[m-1] + a[m]) / 2;
+        }
+
+        async function analyzeImageAuthenticity() {
+            if (!aiDetectorFile) return;
+
+            const btn = document.getElementById('btn-analyze-ai');
+            const wrap = document.getElementById('ai-progress-wrap');
+            const bar = document.getElementById('ai-progress-bar');
+            const title = document.getElementById('ai-progress-title');
+            const percent = document.getElementById('ai-progress-percent');
+            const list = document.getElementById('ai-progress-steps');
+
+            const stages = [
+                'Reading image file',
+                'Checking embedded metadata',
+                'Processing Model',
+                'Reviewing evidence'
+            ];
+            const update = (step, message) => {
+                title.textContent = message || stages[step];
+                percent.textContent = Math.round((step / stages.length) * 100) + '%';
+                bar.style.width = (step / stages.length * 100) + '%';
+                list.innerHTML = stages.map((label, i) => {
+                    const state = i < step ? 'done' : i === step ? 'active' : 'pending';
+                    const icon = state === 'done' ? 'fa-circle-check text-emerald-400' :
+                        state === 'active' ? 'fa-spinner fa-spin text-cyan-300' :
+                        'fa-circle text-slate-700';
+                    const color = state === 'active' ? 'text-cyan-200' :
+                        state === 'done' ? 'text-slate-300' : 'text-slate-500';
+                    return `<div class="flex items-center gap-2"><i class="fa-solid ${icon}"></i><span class="${color}">${label}</span></div>`;
+                }).join('');
+            };
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>ANALYZING...';
+            wrap.classList.remove('hidden');
+            title.textContent = 'Preparing image';
+            document.getElementById('ai-verdict').textContent = 'ANALYSIS IN PROGRESS';
+            document.getElementById('ai-summary').textContent = 'Processing your image locally. Please wait.';
+
+            try {
+                update(0, 'Reading image file...');
+                const forensic = await aiInspectFile(aiDetectorFile);
+                await aiYield();
+
+                update(1, 'Checking metadata and provenance markers...');
+                const meta = forensic.meta || {};
+                const flags = forensic.flags || {};
+                const generatorHits = forensic.generatorHits || [];
+                const cameraFields = [
+                    'Camera make', 'Camera model', 'Exposure time', 'F-number',
+                    'ISO', 'Lens model', 'Focal length', 'Original date/time'
+                ];
+                const cameraEvidence = cameraFields.filter(k => meta[k] && meta[k] !== '0').length;
+                await aiYield();
+
+                update(2, 'Processing Model');
+                const modelResult = await aiRunDetectra(aiDetectorFile, msg => {
+                    title.textContent = 'Processing Model';
+                    const match = String(msg || '').match(/(\d{1,3})%/);
+                    if (match) {
+                        const pct = Math.max(0, Math.min(100, Number(match[1])));
+                        percent.textContent = Math.round(25 + pct * 0.5) + '%';
+                        bar.style.width = (25 + pct * 0.5) + '%';
+                    }
+                });
+
+                update(3, 'Reviewing model result and file evidence...');
+                const pAI = Number(modelResult && modelResult.pAI);
+                if (!Number.isFinite(pAI)) throw new Error('The detector returned an invalid score.');
+
+                // Keep the AI threshold at 0.65, but widen the non-AI side to 0.45.
+                // Social apps such as WhatsApp commonly strip metadata and recompress
+                // camera photos; a low-but-borderline score should not be left inconclusive.
+                // This is a practical screening boundary, not a calibrated probability.
+                let verdict = 'INCONCLUSIVE';
+                let isAI = null;
+                let summary = 'The model result is in the middle range. There is not enough evidence for a confident AI or non-AI label.';
+                let confidenceLabel = 'The score is in the detector middle range; treat the result cautiously.';
+
+                if (pAI >= 0.65) {
+                    verdict = 'LIKELY AI-GENERATED';
+                    isAI = true;
+                    summary = 'The compact vision model found a strong AI-generation signal. This is a screening result, not proof of how the image was created.';
+                    confidenceLabel = 'The model crossed the AI screening boundary (0.65). This score is not a calibrated probability or proof.';
+                } else if (pAI <= 0.45) {
+                    verdict = 'LIKELY NON-AI';
+                    isAI = false;
+                    summary = 'The model leans toward a non-AI image. This includes low-scoring photos shared through apps such as WhatsApp, which may remove camera metadata and recompress the image. It is not proof of camera origin.';
+                    confidenceLabel = pAI <= 0.35
+                        ? 'The model score is below 0.35, giving a stronger non-AI screening signal; this is not proof of camera origin.'
+                        : 'The model score is between 0.35 and 0.45, so this is a low-confidence non-AI screening result; WhatsApp compression and missing metadata can affect evidence.';
+                }
+
+                if (generatorHits.length) {
+                    summary += ' Creator/software metadata also contains a possible generator marker: ' +
+                        generatorHits.slice(0, 4).join(', ') + '. Metadata can be edited or copied.';
+                }
+                if (flags.camera && cameraEvidence >= 2) {
+                    summary += ' Camera-related metadata is present, but it can also be copied or modified.';
+                }
+
+                const badge = isAI === null ? 'bg-amber-500/15 text-amber-300' :
+                    isAI ? 'bg-rose-500/15 text-rose-300' : 'bg-emerald-500/15 text-emerald-300';
+
+                update(stages.length, 'Analysis complete');
+                percent.textContent = '100%';
+                bar.style.width = '100%';
+
+                const verdictEl = document.getElementById('ai-verdict');
+                verdictEl.textContent = verdict;
+                verdictEl.className = 'text-[10px] font-extrabold px-3 py-1.5 rounded-full ' + badge;
+                document.getElementById('ai-summary').textContent = summary;
+                document.getElementById('ai-result-title').textContent = verdict;
+                document.getElementById('ai-result-description').textContent = summary;
+                document.getElementById('ai-result-icon').className =
+                    'fa-solid ' + (isAI === null ? 'fa-circle-question' : isAI ? 'fa-wand-magic-sparkles' : 'fa-camera');
+
+                const resultDetail = isAI === null
+                    ? 'The result is uncertain. Try a clearer, original-quality image for another screening.'
+                    : isAI
+                        ? 'This image shows signs commonly associated with AI-generated imagery. This screening result is not definitive proof.'
+                        : 'The image shows a stronger non-AI signal. This screening result cannot prove that it came directly from a camera.';
+                document.getElementById('ai-result-confidence').textContent = '';
+                document.getElementById('ai-result-confidence').classList.add('hidden');
+                document.getElementById('ai-result-description').textContent = resultDetail;
+                const modal = document.querySelector('#ai-result-modal > div');
+                const topAccent = modal.querySelector('.absolute.inset-x-0');
+                const orbit = document.getElementById('ai-result-orbit');
+                const iconWrap = orbit.querySelector('div');
+                if (isAI === true) {
+                    topAccent.className = 'absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-rose-500 to-red-600';
+                    orbit.className = 'mx-auto mb-5 flex h-28 w-28 items-center justify-center rounded-full border border-rose-400/30 bg-rose-400/5';
+                    iconWrap.className = 'flex h-20 w-20 items-center justify-center rounded-full border-2 border-rose-300/60 text-4xl text-rose-300';
+                    verdictEl.className = 'text-[10px] font-extrabold px-3 py-1.5 rounded-full bg-rose-500/15 text-rose-300';
+                } else if (isAI === false) {
+                    topAccent.className = 'absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 to-green-600';
+                    orbit.className = 'mx-auto mb-5 flex h-28 w-28 items-center justify-center rounded-full border border-emerald-400/30 bg-emerald-400/5';
+                    iconWrap.className = 'flex h-20 w-20 items-center justify-center rounded-full border-2 border-emerald-300/60 text-4xl text-emerald-300';
+                    verdictEl.className = 'text-[10px] font-extrabold px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-300';
+                } else {
+                    topAccent.className = 'absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400 to-yellow-500';
+                    orbit.className = 'mx-auto mb-5 flex h-28 w-28 items-center justify-center rounded-full border border-amber-400/30 bg-amber-400/5';
+                    iconWrap.className = 'flex h-20 w-20 items-center justify-center rounded-full border-2 border-amber-300/60 text-4xl text-amber-300';
+                    verdictEl.className = 'text-[10px] font-extrabold px-3 py-1.5 rounded-full bg-amber-500/15 text-amber-300';
+                }
+                document.getElementById('ai-result-modal').classList.remove('hidden');
+
+            } catch (err) {
+                console.error('AI image scan failed:', err);
+                const message = String(err && err.message || err);
+                document.getElementById('ai-verdict').textContent = 'SCAN UNAVAILABLE';
+                document.getElementById('ai-summary').textContent =
+                    'Image processing could not be completed. No AI or non-AI classification has been made.';
+                document.getElementById('ai-result-title').textContent = 'SCAN UNAVAILABLE';
+                document.getElementById('ai-result-description').textContent =
+                    'No classification was made because processing could not start. Check your internet connection and retry. ' + message;
+                document.getElementById('ai-result-icon').className = 'fa-solid fa-circle-question';
+                document.getElementById('ai-result-confidence').textContent =
+                    'Processing error only — it is not evidence that the image is AI-generated or real.';
+                document.getElementById('ai-result-modal').classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-chart mr-2"></i>ANALYZE IMAGE';
+            }
+        }
+
+        function escapeAIDetectorHtml(value) {
+            return String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        }
+
+        function downloadFile(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+
+    <div id="ai-result-modal" class="hidden fixed inset-0 z-[9999] items-center justify-center bg-slate-950/90 backdrop-blur-md p-4">
+        <div class="relative w-full max-w-md overflow-hidden rounded-3xl border border-cyan-400/20 bg-[#08111f] p-7 text-center shadow-2xl shadow-cyan-950/40">
+            <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-500"></div>
+            <div id="ai-result-orbit" class="mx-auto mb-5 flex h-28 w-28 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/5">
+                <div class="flex h-20 w-20 items-center justify-center rounded-full border-2 border-cyan-300/60 text-4xl text-cyan-300">
+                    <i id="ai-result-icon" class="fa-solid fa-fingerprint"></i>
+                </div>
+            </div>
+            <div class="text-[10px] font-extrabold uppercase tracking-[.3em] text-cyan-300">Forensic scan complete</div>
+            <h2 id="ai-result-title" class="mt-3 text-2xl font-black tracking-wide text-white">ANALYSIS RESULT</h2>
+            <p id="ai-result-description" class="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-slate-300"></p>
+            <div id="ai-result-confidence" class="hidden"></div>
+            <button onclick="closeAIResultModal()" class="mt-7 w-full rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-3 text-xs font-extrabold tracking-wider text-slate-950">CLOSE RESULT</button>
+        </div>
+    </div>
+    <style>
+        #ai-result-modal:not(.hidden) { display:flex; animation: aiModalFade .35s ease-out both; }
+        #ai-result-orbit { animation: aiOrbitPulse 2s ease-in-out infinite; }
+        @keyframes aiModalFade { from {opacity:0} to {opacity:1} }
+        @keyframes aiOrbitPulse { 0%,100% {transform:scale(1);box-shadow:0 0 0 0 rgba(34,211,238,.12)} 50% {transform:scale(1.06);box-shadow:0 0 28px 8px rgba(34,211,238,.12)} }
+    </style>
+</body>
+</html>
