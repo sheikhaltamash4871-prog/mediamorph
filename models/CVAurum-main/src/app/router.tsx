@@ -165,4 +165,4 @@ export const router = createBrowserRouter([
   },
   // Standalone, chrome-free page used for native "Save as PDF".
   { path: '/print/:id', element: s(<PrintPage />), errorElement: <RouteError /> },
-])
+], { basename: import.meta.env.BASE_URL })
