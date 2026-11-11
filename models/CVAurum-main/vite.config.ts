@@ -318,6 +318,8 @@ function machineReadersDev(): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Served as a sub-app inside the MediaMorph GitHub Pages site.
+  base: '/mediamorph/models/CVAurum-main/',
   // `.icc` is not one of Vite's built-in asset types: without this, the
   // build-time `?inline` import of the sRGB profile in `src/lib/pdf/pdfa.ts`
   // fails import analysis ("invalid JS syntax"). Listed once, inlined
@@ -332,7 +334,7 @@ export default defineConfig({
       injectRegister: 'auto',
       includeAssets: ['favicon.svg', 'icon.svg'],
       manifest: {
-        id: '/',
+        id: '/mediamorph/models/CVAurum-main/',
         name: 'CVAurum — Free Open-Source Resume Builder',
         short_name: 'CVAurum',
         description: 'Free, open-source, 100% local resume builder. 58 ATS-ready templates, a built-in ATS score, PDF resume import, and PDF / Word / JSON export — no account, fully offline.',
@@ -340,13 +342,13 @@ export default defineConfig({
         theme_color: '#d4982f',
         background_color: '#0b0f1a',
         display: 'standalone',
-        start_url: '/',
-        scope: '/',
+        start_url: '/mediamorph/models/CVAurum-main/',
+        scope: '/mediamorph/models/CVAurum-main/',
         icons: [
-          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: '/mediamorph/models/CVAurum-main/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
           // Concrete PNG sizes — required before Chrome offers "Install app".
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/mediamorph/models/CVAurum-main/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/mediamorph/models/CVAurum-main/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
@@ -484,7 +486,7 @@ export default defineConfig({
         clientsClaim: true,
         // The plain shell, not index.html: that one carries the landing
         // page's content in #root, which would flash inside /resume/<id>.
-        navigateFallback: '/shell.html',
+        navigateFallback: '/mediamorph/models/CVAurum-main/shell.html',
         // The print route renders client-side; never serve the SPA shell for it from cache wrongly.
         // A path that names a file (llms.txt, robots.txt, sitemap.xml, an
         // image) is a file, not a page: with the worker installed, typing
