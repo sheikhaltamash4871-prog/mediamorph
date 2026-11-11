@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OmniConvert Luxury - Studio & Converter</title>
+    <title>MediaMorph - Studio & Converter</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -34,8 +34,12 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <style>
@@ -110,6 +114,105 @@
             background-size: 20px 20px;
             background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
         }
+    
+        /* CV Maker becomes a true full-viewport workspace when its tab is active. */
+        body.cv-maker-active { overflow-x: hidden; }
+        body.cv-maker-active #app-main {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        body.cv-maker-active #cv-maker {
+            display: block !important;
+            width: 100% !important;
+            max-width: none !important;
+            min-height: calc(100dvh - 86px) !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        #cv-maker .luxury-card {
+            width: 100% !important;
+            max-width: none !important;
+            min-height: calc(100dvh - 86px) !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+        #cv-maker #cvaurum-frame-wrap {
+            display: block;
+            width: 100% !important;
+            height: calc(100dvh - 86px) !important;
+            min-height: 560px !important;
+            max-height: none !important;
+            margin: 0 !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            overflow: hidden;
+            background: #fff;
+        }
+        #cv-maker #cvaurum-frame {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 560px !important;
+            border: 0 !important;
+            background: #fff;
+        }
+        #cv-maker .cv-maker-intro { display: none !important; }
+        #crop-preview-panel:focus-visible{outline:2px solid rgba(96,165,250,.9);outline-offset:3px}
+        #crop-preview-panel:hover .fa-folder-open{filter:drop-shadow(0 0 7px rgba(96,165,250,.65))}
+        #crop-zoom-control input[type=range]{height:8px;min-height:32px;touch-action:pan-x;cursor:pointer}
+        @media(max-width:767px){#crop-zoom-control{margin-top:10px;padding:13px}#crop-preview-panel{height: min(58vh,380px);min-height:250px}}
+        .oo-download-btn{background:linear-gradient(135deg,#2563eb,#3b82f6 55%,#60a5fa)!important;color:#fff!important;border:1px solid rgba(147,197,253,.55)!important;box-shadow:0 8px 22px rgba(37,99,235,.28),inset 0 1px 0 rgba(255,255,255,.18);font-weight:900!important;transition:transform .18s ease,box-shadow .18s ease,filter .18s ease}
+        .oo-download-btn:hover{background:linear-gradient(135deg,#1d4ed8,#2563eb 55%,#3b82f6)!important;border-color:#93c5fd!important;box-shadow:0 10px 26px rgba(37,99,235,.4);transform:translateY(-1px)}
+        .oo-download-btn:active{transform:scale(.97)}
+        @media (max-width: 767px) {
+            #crop-adjustment-controls.mobile-preview-controls{width:100%;margin-top:14px;padding:14px;border:1px solid rgba(59,130,246,.28);border-radius:16px;background:linear-gradient(145deg,rgba(15,23,42,.96),rgba(10,18,34,.96));box-shadow:0 12px 28px rgba(2,6,23,.28)}
+            #crop-adjustment-controls.mobile-preview-controls>div{padding:9px 10px;border-radius:11px;background:rgba(30,41,59,.45)}
+            #crop-adjustment-controls.mobile-preview-controls input[type=range]{height:7px;min-height:30px;touch-action:pan-x}
+            #crop-preview-panel{scroll-margin-top:12px}
+            body.cv-maker-active #cv-maker { min-height: calc(100dvh - 142px) !important; }
+            #cv-maker .luxury-card { min-height: calc(100dvh - 142px) !important; }
+            #cv-maker #cvaurum-frame-wrap {
+                height: calc(100dvh - 142px) !important;
+                min-height: 480px !important;
+            }
+            #cv-maker #cvaurum-frame { min-height: 480px !important; }
+            #crop-studio .grid.grid-cols-1.lg\:grid-cols-12 { gap: 12px !important; }
+            #crop-studio .lg\:col-span-5 { padding: 12px !important; gap: 12px !important; }
+            #crop-studio input[type="range"] { min-height: 34px; margin-top: 2px; margin-bottom: 2px; touch-action: pan-x; }
+            #crop-studio .space-y-4 > .space-y-1\.5 { padding: 7px 9px; border-radius: 10px; background: rgba(15,23,42,.55); }
+            #crop-studio .lg\:col-span-7 > .h-\[300px\] { height: 260px; }
+        }
+
+
+        .cv-template{border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:8px;background:rgba(15,23,42,.65);text-align:left;color:#e2e8f0;transition:.2s}.cv-template.active{border-color:#3b82f6;background:rgba(37,99,235,.18);box-shadow:0 0 0 2px rgba(59,130,246,.2)}.cv-template b{display:block;font-size:11px;margin:7px 3px 2px}.cv-thumb{height:116px;display:block;padding:12px 9px;background:white;color:#1e293b;border-radius:5px;font-size:10px;font-weight:800;line-height:1.6;overflow:hidden}.cv-thumb small{font-size:6px;letter-spacing:1px}.cv-thumb hr{border:0;border-top:1px solid #cbd5e1;margin:7px 0}.cv-modern{border-top:8px solid #2563eb}.cv-classic{font-family:Georgia;text-align:center}.cv-sidebar{background:linear-gradient(90deg,#1e3a8a 34%,white 34%);color:#1e293b;padding-left:43%}.cv-minimal{font-family:Arial;font-weight:400}.cv-professional{border-left:8px solid #0f766e}.cv-elegant{font-family:Georgia;text-align:center;border-bottom:6px solid #a78bfa}.cv-bold{background:#111827;color:white;border-top:9px solid #f59e0b}.cv-student{border-top:8px solid #059669}.cv-control,.cv-tool{background:#0f172a;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:7px 9px;color:#e2e8f0;font-size:11px}.cv-tool{cursor:pointer}.cv-tool:hover{border-color:#3b82f6;background:#1e3a8a}.cv-page{width:794px;min-width:794px;min-height:1123px;background:white;color:#172033;box-shadow:0 12px 40px #0008;padding:48px 54px;font-family:Arial,sans-serif;position:relative;overflow:hidden}.cv-page [data-cv-edit]{cursor:text;outline:1px dashed transparent}.cv-page [data-cv-edit]:focus,.cv-page .cv-selected{outline:2px solid #3b82f6!important;outline-offset:2px}.cv-page img{max-width:100%;object-fit:cover}.cv-page .cv-head{border-bottom:3px solid #2563eb;padding-bottom:18px;margin-bottom:22px}.cv-page h1{font-size:30pt;font-weight:800;margin:0 0 4px}.cv-page h2{font-size:12pt;text-transform:uppercase;letter-spacing:1.4px;color:#2563eb;border-bottom:1px solid #cbd5e1;padding-bottom:5px;margin:18px 0 8px}.cv-page p,.cv-page li{font-size:10pt;line-height:1.45;margin:4px 0}.cv-page .cv-contact{font-size:9pt;color:#475569}.cv-page .cv-layout{display:grid;grid-template-columns:1fr 2fr;gap:24px}.cv-page .cv-sidebar-col{background:#eff6ff;padding:18px;margin:-48px 0 -48px -54px;padding-top:48px}.cv-page .cv-photo{width:112px;height:112px;border-radius:50%;object-fit:cover;border:3px solid #dbeafe;margin-bottom:12px}
+
+
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=Inter:wght@400;500;700;800&family=Lato:wght@400;700;900&family=Libre+Baskerville:wght@400;700&family=Manrope:wght@400;500;700;800&family=Merriweather:wght@400;700;900&family=Montserrat:wght@400;500;700;800&family=Nunito:wght@400;700;900&family=Open+Sans:wght@400;600;700;800&family=Oswald:wght@400;500;700&family=Playfair+Display:wght@400;700;800&family=Poppins:wght@400;500;700;800&family=PT+Sans:wght@400;700&family=Raleway:wght@400;600;800&family=Roboto:wght@400;500;700;900&family=Source+Sans+3:wght@400;600;700&family=Ubuntu:wght@400;500;700&family=Work+Sans:wght@400;500;700;800&display=swap');
+        .cv-template{padding:10px;border-radius:15px;background:linear-gradient(145deg,rgba(20,30,50,.96),rgba(8,15,28,.96));border:1px solid rgba(148,163,184,.2);box-shadow:0 8px 22px #0002;text-align:left;color:#e2e8f0;transition:transform .2s,border-color .2s,box-shadow .2s}.cv-template:hover{transform:translateY(-3px);border-color:#38bdf8;box-shadow:0 12px 28px #0005}.cv-template b{font-size:11px;margin:9px 3px 2px}.cv-thumb{height:178px;padding:20px 13px;border-radius:5px;box-shadow:0 5px 14px #0003;font-size:11px;line-height:1.8;letter-spacing:.2px}.cv-thumb i{display:block;font-style:normal;font-size:14px;font-weight:900;letter-spacing:1px}.cv-thumb small{display:block;font-size:7px;letter-spacing:1.3px;margin-top:5px}.cv-thumb hr{margin:14px 0;border-color:#94a3b8}.cv-coral{background:linear-gradient(135deg,#fff7f4 0 68%,#e76f51 68%);border-left:7px solid #e76f51}.cv-forest{background:#f4f7f2;border-top:12px solid #315c45;color:#203c2e}.cv-mono{background:linear-gradient(90deg,#222 0 13%,#fff 13%);color:#111;padding-left:26px}.cv-royal{background:#fffdf6;border-top:8px solid #b08d46;color:#45371d;font-family:Georgia}.cv-tech{background:linear-gradient(135deg,#071b2c,#123e55);color:#d9faff;border-left:8px solid #22d3ee}.cv-creative{background:linear-gradient(90deg,#fef3c7 0 38%,#fff 38%);color:#422006;padding-left:44%}.cv-ocean{background:#f0f9ff;border-bottom:12px solid #0284c7;color:#0c3552}.cv-rose{background:#fff7fa;border-top:9px solid #be7890;color:#63384b;font-family:Georgia}.cv-architect{background:repeating-linear-gradient(0deg,#fff,#fff 20px,#e5e7eb 21px);border-left:5px solid #111827;color:#111827;font-family:Arial}.cv-startup{background:linear-gradient(130deg,#eff6ff,#fff 55%,#dbeafe);border-top:8px solid #4f46e5;color:#1e1b4b}.cv-academic{background:#fff;font-family:Georgia;color:#202020;border-top:4px double #475569}.cv-compact{background:#f8fafc;border-left:12px solid #64748b;color:#334155;padding-top:14px}.cv-template:focus-visible{outline:2px solid #38bdf8;outline-offset:3px}
+
+        .cv-thumb.cv-luxe{background:linear-gradient(145deg,#151a2d 0 42%,#f7f2e9 42%);color:#f8e7c2;padding-left:48%}.cv-thumb.cv-magazine{background:linear-gradient(90deg,#f5f1eb 0 22%,#fff 22%);color:#273047;border-top:5px solid #c76d4d}.cv-thumb.cv-emerald{background:linear-gradient(135deg,#0f3d35 0 34%,#f6fbf8 34%);color:#123b32;padding-left:40%}.cv-thumb.cv-lavender{background:#f4f0ff;color:#3f2e68;border-left:18px solid #8b75c9}.cv-thumb.cv-orange{background:linear-gradient(160deg,#fff7ed 0 68%,#f97316 68%);color:#7c2d12}.cv-thumb.cv-corporate{background:linear-gradient(90deg,#16324f 0 28%,#fff 28%);color:#16324f;padding-left:35%}.cv-thumb.cv-editorial{background:#fff;color:#111827;border-top:12px solid #111827;font-family:Georgia}.cv-thumb.cv-cyber{background:#101827;color:#67e8f9;border:1px solid #22d3ee;box-shadow:inset 0 0 18px #0891b2}.cv-thumb.cv-pastel{background:linear-gradient(135deg,#fff1f2,#fdf2f8,#eff6ff);color:#6b4662;border-radius:14px}.cv-thumb.cv-maroon{background:#fffaf8;color:#541b2b;border-top:10px solid #7f1d3a;font-family:Georgia}.cv-thumb.cv-gridpro{background:linear-gradient(90deg,#e2e8f0 0 32%,#fff 32%);color:#1e293b;padding-left:38%}.cv-thumb.cv-sand{background:#f4ead8;color:#56432e;border-left:8px solid #b68b5a}.cv-thumb.cv-blueprint{background:repeating-linear-gradient(0deg,#10263f,#10263f 12px,#1d3c5c 13px);color:#e0f2fe;border:1px solid #38bdf8}
+        #cv-canvas img.cv-selected{outline:3px solid #38bdf8!important;outline-offset:3px;cursor:move}#cv-canvas img{touch-action:none;user-select:none;-webkit-user-drag:none}.cv-image-tools{display:flex;flex-wrap:wrap;gap:7px;align-items:center}.cv-image-tools label{font-size:10px;color:#cbd5e1;display:flex;align-items:center;gap:5px}.cv-image-tools input[type=range]{width:92px;accent-color:#38bdf8}
+
+        #cv-editor .cv-page{margin:0 auto}
+
+        /* MediaMorph Office in-site editor */
+        .oo-home-card{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:12px;padding:28px;border:1px solid #334155;border-radius:18px;background:linear-gradient(145deg,#142238,#0d1728);min-height:220px;transition:.2s}.oo-home-card:hover{border-color:#22d3ee;transform:translateY(-2px);background:linear-gradient(145deg,#18334a,#101d32)}.oo-home-card strong{font-size:22px;font-weight:900;color:#f8fafc}.oo-home-card>span:not(.oo-home-icon){font-size:13px;line-height:1.6;color:#94a3b8}.oo-home-card em{font-style:normal;font-size:12px;font-weight:800;color:#67e8f9;margin-top:auto}.oo-home-icon{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:#083344;color:#67e8f9;font-size:21px}.oo-create-card{display:flex;flex-direction:column;align-items:center;gap:9px;padding:22px 12px;border:1px solid #334155;border-radius:14px;background:#111e31;color:#e2e8f0}.oo-create-card:hover{border-color:#22d3ee;background:#183047}.oo-create-card i{font-size:32px}.oo-create-card b{font-size:16px}.oo-create-card small{font-size:11px;color:#94a3b8}
+
+        .omni-office-shell{background:#0b1220;border:1px solid rgba(148,163,184,.2);border-radius:20px;overflow:hidden;box-shadow:0 18px 55px rgba(0,0,0,.35)}
+        .oo-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;background:#18243a;border:1px solid #334155;color:#e2e8f0;font-size:12px;font-weight:800}.oo-btn:hover{border-color:#22d3ee;background:#1e344b}.oo-primary{background:linear-gradient(120deg,#06b6d4,#3b82f6);color:#04111e;border:0}
+        .oo-appbar{display:flex;align-items:center;gap:15px;flex-wrap:wrap;padding:12px 16px;background:#111c2e;border-top:1px solid #263449;border-bottom:1px solid #263449}.oo-brand{display:flex;align-items:center;gap:9px;font-weight:900;font-size:14px}.oo-brand-icon{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#06b6d4,#2563eb);display:grid;place-items:center;color:#06111e}.oo-file-name{font-size:11px;font-weight:500;color:#94a3b8;border-left:1px solid #475569;padding-left:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.oo-tabs{display:none!important;gap:5px;margin-left:auto}.oo-tab{padding:8px 12px;border-radius:9px;font-size:12px;font-weight:800;color:#94a3b8}.oo-tab.active{background:#26364e;color:#67e8f9}.oo-save-state{font-size:10px;color:#34d399}
+        .oo-ribbon{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;background:#172337;border-bottom:1px solid #334155}.oo-toolgroup{display:flex;align-items:center;gap:4px;padding-right:8px;border-right:1px solid #3b4b60}.oo-toolgroup:last-child{border:0}.oo-toolgroup button{min-width:30px;height:30px;padding:0 8px;border-radius:6px;color:#dbeafe;background:#23344b;font-size:12px}.oo-toolgroup button:hover{background:#155e75}.oo-toolgroup select,.oo-toolgroup input[type=color]{height:30px;background:#0f1b2d;color:#e2e8f0;border:1px solid #42536b;border-radius:6px;padding:2px 6px;font-size:11px}.oo-toolgroup input[type=color]{width:34px;padding:2px}.oo-formula{width:min(300px,48vw);height:30px;background:#0b1423;border:1px solid #40516a;border-radius:6px;padding:4px 8px;color:white;font-size:12px}
+        .oo-workarea{background:#273449;min-height:580px;max-height:calc(100vh - 300px);overflow:auto;padding:24px 12px}.oo-page-stack{display:flex;flex-direction:column;align-items:center;gap:22px}.oo-paper{width:210mm;min-height:297mm;background:white;color:#172033;padding:25mm 22mm;margin:0 auto;box-shadow:0 8px 28px #0b1020;font-family:Arial,sans-serif;font-size:12pt;line-height:1.5;outline:none;overflow-wrap:anywhere}.oo-paper:focus{outline:2px solid #22d3ee;outline-offset:2px}.oo-paper img{max-width:100%;height:auto}.oo-paper table{border-collapse:collapse;width:100%}.oo-paper td,.oo-paper th{border:1px solid #94a3b8;padding:6px}.oo-paper h1{font-size:25pt}.oo-paper h2{font-size:19pt}.oo-sheetbar{display:flex;gap:5px;padding:8px;background:#18263a}.oo-sheetbar button{padding:7px 12px;background:#263a52;border-radius:7px;color:#cbd5e1;font-size:11px}.oo-sheetbar button.active{background:#0891b2;color:white}.oo-sheet-tab{display:inline-flex;align-items:center;gap:9px}.oo-sheet-tab .oo-sheet-close{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;font-size:10px;color:#cbd5e1;background:transparent}.oo-sheet-tab .oo-sheet-close:hover{background:#dc2626;color:#fff}.oo-grid-wrap{overflow:auto;background:#fff;padding:10px}.oo-grid{border-collapse:collapse;color:#172033;background:white;font:12px Arial;min-width:100%}.oo-grid th{background:#e8eef5;color:#334155;position:sticky;top:0;z-index:1}.oo-grid th,.oo-grid td{border:1px solid #cbd5e1;min-width:105px;height:29px;padding:3px 7px}.oo-grid td{outline:none;white-space:pre-wrap}.oo-grid td:focus{outline:2px solid #0891b2;outline-offset:-2px}.oo-grid td.selected{background:#cffafe}.oo-slide-layout{display:grid;grid-template-columns:150px minmax(0,1fr);gap:18px;max-width:1100px;margin:auto}.oo-slide-list{display:flex;flex-direction:column;gap:9px}.oo-slide-thumb{padding:8px;background:#e2e8f0;color:#334155;border:2px solid transparent;border-radius:7px;min-height:65px;text-align:left;font-size:10px;overflow:hidden}.oo-slide-thumb.active{border-color:#22d3ee}.oo-slide-stage{display:flex;flex-direction:column;align-items:center;gap:14px}.oo-slide{width:min(100%,960px);aspect-ratio:16/9;background:white;color:#172033;box-shadow:0 8px 30px #0b1020;padding:6% 7%;outline:none;overflow:auto;font-family:Arial,sans-serif}.oo-slide h1{font-size:clamp(22px,4vw,44px);font-weight:800}.oo-slide p{font-size:clamp(14px,2vw,24px)}.oo-slide-controls{display:flex;align-items:center;gap:18px;font-size:11px;color:#cbd5e1}.oo-status{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:9px 14px;background:#101b2b;color:#94a3b8;font-size:10px}.oo-disclaimer{padding:10px 14px;color:#94a3b8;font-size:10px;line-height:1.5;background:#0c1626}
+        body.oo-active #app-main{max-width:none!important;width:100%!important;padding:12px!important}body.oo-active #office-studio{width:100%}body.oo-active #office-studio>.omni-office-shell{border-radius:14px}
+        @media(max-width:700px){.oo-tabs{display:none!important}.oo-workarea{padding:12px 5px;max-height:calc(100vh - 330px)}.oo-paper{width:100%;min-height:700px;padding:35px 24px;font-size:11pt}.oo-slide-layout{grid-template-columns:78px minmax(0,1fr);gap:8px}.oo-slide-thumb{padding:4px;min-height:48px;font-size:8px}.oo-appbar{gap:8px;padding:9px}.oo-tabs{margin-left:0;width:100%;order:3}.oo-tab{flex:1}.oo-save-state{margin-left:auto}.oo-ribbon{gap:6px}.oo-toolgroup{padding-right:5px}}
+        @media print{body *{visibility:hidden!important}.oo-paper,.oo-paper *{visibility:visible!important}.oo-page-stack{gap:0}.oo-paper{box-shadow:none;page-break-after:always;margin:0!important}}
+
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between text-slate-100 antialiased pb-20 md:pb-0">
@@ -122,7 +225,7 @@
                 </div>
                 <div>
                     <h1 class="text-lg font-extrabold tracking-tight text-white leading-none">
-                        OmniStudio<span class="text-neon-cyan">.</span>
+                        MediaMorph<span class="text-neon-cyan">.</span>
                     </h1>
                     <span class="text-[10px] text-emerald-400 font-semibold tracking-wide">LUXURY ACCELERATED ENGINE</span>
                 </div>
@@ -141,11 +244,17 @@
                 <button onclick="switchTab('ai-detector')" id="nav-ai-detector" class="nav-tab text-xs font-bold px-5 py-2.5 rounded-xl text-slate-400 hover:text-white transition-all">
                     <i class="fa-solid fa-magnifying-glass-chart mr-2"></i>AI Image Detector
                 </button>
+                <button onclick="switchTab('cv-maker')" id="nav-cv-maker" class="nav-tab text-xs font-bold px-5 py-2.5 rounded-xl text-slate-400 hover:text-white transition-all">
+                    <i class="fa-solid fa-file-user mr-2"></i>CV Maker
+                </button>
+                <button onclick="switchTab('office-studio')" id="nav-office-studio" class="nav-tab text-xs font-bold px-4 py-2.5 rounded-xl text-slate-400 hover:text-white transition-all">
+                    <i class="fa-solid fa-file-word mr-2"></i>MS Office
+                </button>
             </nav>
         </div>
     </header>
 
-    <main class="flex-grow max-w-6xl w-full mx-auto px-3 sm:px-4 py-5 md:py-8">
+    <main id="app-main" class="flex-grow max-w-6xl w-full mx-auto px-3 sm:px-4 py-5 md:py-8">
 
         <section id="pdf-tools" class="tab-content space-y-6">
             <div class="text-center max-w-xl mx-auto space-y-2">
@@ -155,40 +264,26 @@
                 <p class="text-xs text-slate-400 font-medium">Instant client-side file parsing with high-speed rendering.</p>
             </div>
 
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto">
-                <button onclick="setDocMode('pdf-to-docx')" id="mode-pdf-to-docx" class="doc-mode-btn btn-luxury p-3 rounded-2xl luxury-card text-center border-neon-cyan bg-cyan-950/30">
-                    <i class="fa-solid fa-file-word text-2xl text-cyan-400 mb-1.5"></i>
-                    <div class="text-xs font-bold">PDF to DOCX</div>
-                </button>
-                <button onclick="setDocMode('docx-to-pdf')" id="mode-docx-to-pdf" class="doc-mode-btn btn-luxury p-3 rounded-2xl luxury-card text-center">
-                    <i class="fa-solid fa-file-pdf text-2xl text-rose-400 mb-1.5"></i>
-                    <div class="text-xs font-bold">DOCX to PDF</div>
-                </button>
-                <button onclick="setDocMode('img-to-pdf')" id="mode-img-to-pdf" class="doc-mode-btn btn-luxury p-3 rounded-2xl luxury-card text-center">
-                    <i class="fa-solid fa-file-image text-2xl text-emerald-400 mb-1.5"></i>
-                    <div class="text-xs font-bold">Image to PDF</div>
-                </button>
-                <button onclick="setDocMode('txt-to-pdf')" id="mode-txt-to-pdf" class="doc-mode-btn btn-luxury p-3 rounded-2xl luxury-card text-center">
-                    <i class="fa-solid fa-file-lines text-2xl text-amber-400 mb-1.5"></i>
-                    <div class="text-xs font-bold">Text to PDF</div>
-                </button>
-            </div>
-
             <div class="luxury-card rounded-3xl p-5 sm:p-7 max-w-2xl mx-auto space-y-5">
-                <div id="drop-zone-doc" class="border-2 border-dashed border-cyan-500/30 rounded-2xl p-7 text-center cursor-pointer bg-slate-900/40 hover:bg-slate-900/80 transition-all flex flex-col items-center justify-center space-y-3">
-                    <input type="file" id="doc-file-input" class="hidden" />
-                    <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-neon-cyan shadow-inner">
+                <div id="drop-zone-doc" class="group border-2 border-dashed border-cyan-400/40 rounded-3xl p-8 sm:p-10 text-center cursor-pointer bg-gradient-to-br from-cyan-950/25 via-slate-900/70 to-blue-950/25 hover:border-cyan-300 hover:shadow-lg hover:shadow-cyan-900/20 transition-all duration-300 flex flex-col items-center justify-center space-y-3">
+                    <input type="file" id="doc-file-input" class="hidden" accept=".pdf,.doc,.docx,.txt,.text,.html,.htm,.rtf,.odt,.xls,.xlsx,.csv,.ppt,.pptx,.ps,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff,.avif,.heic,.heif,.svg" />
+                    <div class="w-16 h-16 rounded-3xl bg-cyan-400/10 border border-cyan-300/25 flex items-center justify-center text-cyan-300 shadow-lg shadow-cyan-950/30 group-hover:scale-105 transition-transform">
                         <i id="doc-input-icon" class="fa-solid fa-cloud-arrow-up text-2xl"></i>
                     </div>
                     <div>
                         <p class="text-sm font-bold text-white" id="doc-upload-title">Tap or drop file to convert</p>
-                        <p class="text-[11px] text-slate-400 mt-1" id="doc-upload-desc">Supports PDF files for text & layout extraction</p>
+                        <p class="text-[11px] text-slate-400 mt-1" id="doc-upload-desc">PDF, Word, Excel, HTML, RTF and text files</p>
                     </div>
                     <div id="doc-file-pill" class="hidden items-center space-x-2.5 bg-slate-800/90 border border-white/10 px-4 py-2 rounded-xl text-xs">
                         <i class="fa-solid fa-paperclip text-neon-cyan"></i>
                         <span id="doc-file-name" class="max-w-[160px] truncate font-semibold">selected.pdf</span>
                         <span id="doc-file-size" class="text-slate-400 text-[10px]"></span>
                     </div>
+                </div>
+
+                <div id="doc-source-preview" class="hidden luxury-card rounded-2xl p-4 space-y-3">
+                    <div class="flex items-center justify-between"><span class="text-xs font-extrabold tracking-wider text-slate-300">FILE PREVIEW</span><span id="doc-preview-kind" class="text-[10px] text-cyan-300"></span></div>
+                    <div id="doc-preview-content" class="w-full min-h-[220px] max-h-[62vh] overflow-auto rounded-xl bg-slate-950 border border-white/10 flex items-center justify-center"></div>
                 </div>
 
                 <div id="doc-options-panel" class="hidden space-y-3 pt-2">
@@ -218,7 +313,7 @@
                 <div class="flex flex-col gap-2.5 pt-2">
                     <button id="btn-convert-doc" disabled onclick="processDocConversion()" class="btn-luxury w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 font-extrabold text-xs text-black shadow-lg shadow-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                         <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
-                        <span>CONVERT NOW</span>
+                        <span>START CONVERSION</span>
                     </button>
                     <button id="btn-download-doc" class="hidden btn-luxury w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 font-extrabold text-xs text-black shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2">
                         <i class="fa-solid fa-download text-sm"></i>
@@ -235,7 +330,59 @@
                         <div id="doc-progress-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 w-0 transition-all duration-200"></div>
                     </div>
                 </div>
+
+            <div id="doc-format-card" class="luxury-card rounded-3xl p-5 sm:p-6 max-w-2xl mx-auto space-y-4 border border-cyan-400/20 shadow-xl shadow-cyan-950/20 scroll-mt-6">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-[.22em] font-black text-cyan-300">Smart format selector</p>
+                        <h3 class="text-lg font-extrabold text-white mt-1">Choose output format</h3>
+                    </div>
+                    <span id="doc-source-type" class="text-[10px] font-black tracking-wider rounded-full px-3 py-1.5 bg-slate-800 text-slate-300 border border-white/10">WAITING FOR FILE</span>
+                </div>
+                <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-2xl bg-slate-950/70 border border-white/10 p-3">
+                    <div class="min-w-0"><p class="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Your file</p><p id="doc-source-label" class="text-sm font-extrabold text-white truncate mt-1">Not selected</p></div>
+                    <i class="fa-solid fa-arrow-right text-cyan-400"></i>
+                    <div class="min-w-0 text-right"><p class="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Convert to</p><p id="doc-target-label" class="text-sm font-extrabold text-cyan-300 mt-1">DOCX</p></div>
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase tracking-widest font-extrabold text-slate-300 mb-2">Choose a conversion</label>
+                    <select id="doc-output-format" class="hidden" aria-hidden="true" tabindex="-1"><option value="docx" selected>DOCX</option></select>
+                    <div id="doc-format-buttons" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+                    <p id="doc-format-help" class="text-[10px] text-slate-400 mt-2">Upload a file to see compatible conversion formats. Select any format button to begin.</p>
+                </div>
             </div>
+            </div>
+        </section>
+
+        <section id="office-studio" class="tab-content hidden space-y-4">
+          <div class="omni-office-shell">
+            <div id="oo-home" class="max-w-5xl mx-auto py-12 px-4">
+              <div class="text-center mb-10"><div class="text-[10px] tracking-[.28em] font-black text-cyan-300">MEDIAMORPH PRODUCTIVITY</div><h2 class="text-3xl md:text-4xl font-black mt-3">MediaMorph Office <span class="text-cyan-300">Workspace</span></h2><p class="text-sm text-slate-400 mt-3">Choose Word or Excel, or open an existing file. The matching editor opens automatically inside MediaMorph.</p></div>
+              <div class="grid md:grid-cols-2 gap-5">
+                <button class="oo-home-card" onclick="ooShowCreate()"><span class="oo-home-icon"><i class="fa-solid fa-file-circle-plus"></i></span><strong>Create New</strong><span>Start a fresh Word document or Excel workbook.</span><em>Choose an app <i class="fa-solid fa-arrow-right"></i></em></button>
+                <button class="oo-home-card" onclick="document.getElementById('oo-import').click()"><span class="oo-home-icon"><i class="fa-solid fa-folder-open"></i></span><strong>Edit / Browse</strong><span>Open an existing file. MediaMorph Office will select the matching editor automatically.</span><em>Browse files <i class="fa-solid fa-arrow-right"></i></em></button>
+              </div>
+              <input id="oo-import" type="file" class="hidden" accept=".docx,.doc,.txt,.rtf,.html,.htm,.pdf,.xlsx,.xls,.csv" onchange="ooImport(event)">
+              <div id="oo-create-picker" class="hidden mt-8 rounded-2xl border border-slate-700 bg-slate-900/70 p-5"><div class="flex items-center justify-between mb-4"><div><h3 class="font-black text-lg">Create a new file</h3><p class="text-xs text-slate-400">Select the Microsoft Office type you want to work with.</p></div><button class="oo-btn" onclick="ooShowHome()"><i class="fa-solid fa-arrow-left"></i> Back</button></div><div class="grid sm:grid-cols-2 gap-3 max-w-2xl"><button class="oo-create-card" onclick="ooCreateType('word')"><i class="fa-solid fa-file-word text-blue-400"></i><b>Word</b><small>Document (.docx)</small></button><button class="oo-create-card" onclick="ooCreateType('excel')"><i class="fa-solid fa-file-excel text-green-400"></i><b>Excel</b><small>Workbook (.xlsx)</small></button></div></div>
+            </div>
+            <div id="oo-editor" class="hidden">
+            <div class="oo-appbar"><button class="oo-btn" onclick="ooShowHome()"><i class="fa-solid fa-arrow-left"></i> Back</button><div class="oo-brand"><span class="oo-brand-icon"><i class="fa-solid fa-layer-group"></i></span><span>MediaMorph Office</span><span id="oo-file-name" class="oo-file-name">Untitled document</span></div><span id="oo-save-state" class="oo-save-state">Ready</span><button class="oo-btn oo-download-btn" onclick="ooExport(event)" title="Download workbook or document"><i class="fa-solid fa-download"></i> Download</button></div>
+            <div id="oo-word-tools" class="oo-ribbon">
+              <div class="oo-toolgroup"><button onclick="ooCmd('undo')" title="Undo"><i class="fa-solid fa-rotate-left"></i></button><button onclick="ooCmd('redo')" title="Redo"><i class="fa-solid fa-rotate-right"></i></button></div>
+              <div class="oo-toolgroup"><select onchange="ooCmd('formatBlock',this.value)"><option value="P">Normal</option><option value="H1">Heading 1</option><option value="H2">Heading 2</option><option value="H3">Heading 3</option><option value="BLOCKQUOTE">Quote</option></select><select onchange="ooCmd('fontName',this.value)"><option>Arial</option><option>Calibri</option><option>Times New Roman</option><option>Georgia</option><option>Verdana</option><option>Tahoma</option></select><select onchange="ooCmd('fontSize',this.value)"><option value="2">10</option><option value="3" selected>12</option><option value="4">14</option><option value="5">18</option><option value="6">24</option><option value="7">36</option></select></div>
+              <div class="oo-toolgroup"><button onclick="ooCmd('bold')"><b>B</b></button><button onclick="ooCmd('italic')"><i>I</i></button><button onclick="ooCmd('underline')"><u>U</u></button><button onclick="ooCmd('strikeThrough')"><s>S</s></button><input type="color" title="Font color" onchange="ooCmd('foreColor',this.value)"><input type="color" title="Highlight" value="#fff59d" onchange="ooCmd('hiliteColor',this.value)"></div>
+              <div class="oo-toolgroup"><button onclick="ooCmd('justifyLeft')"><i class="fa-solid fa-align-left"></i></button><button onclick="ooCmd('justifyCenter')"><i class="fa-solid fa-align-center"></i></button><button onclick="ooCmd('justifyRight')"><i class="fa-solid fa-align-right"></i></button><button onclick="ooCmd('justifyFull')"><i class="fa-solid fa-align-justify"></i></button><button onclick="ooCmd('insertUnorderedList')"><i class="fa-solid fa-list-ul"></i></button><button onclick="ooCmd('insertOrderedList')"><i class="fa-solid fa-list-ol"></i></button></div>
+              <div class="oo-toolgroup"><button onclick="ooInsertTable()"><i class="fa-solid fa-table"></i> Table</button><button onclick="ooInsertImage()"><i class="fa-regular fa-image"></i> Image</button><button onclick="ooInsertLink()"><i class="fa-solid fa-link"></i> Link</button><button onclick="ooPageBreak()"><i class="fa-solid fa-file-circle-plus"></i> Page break</button><button onclick="window.print()"><i class="fa-solid fa-print"></i></button></div>
+            </div>
+            <div id="oo-excel-tools" class="oo-ribbon hidden"><div class="oo-toolgroup"><button onclick="ooAddRow()">Insert row</button><button onclick="ooAddCol()">Insert column</button><button onclick="ooDeleteRow()">Delete row</button><button onclick="ooDeleteCol()">Delete column</button></div><div class="oo-toolgroup"><button onclick="ooCellStyle('bold')"><b>B</b></button><button onclick="ooCellStyle('italic')"><i>I</i></button><button onclick="ooCellStyle('underline')"><u>U</u></button><input type="color" title="Cell fill" value="#fff2cc" onchange="ooCellFill(this.value)"></div><div class="oo-toolgroup"><span class="text-xs text-slate-400">fx</span><input id="oo-formula" class="oo-formula" placeholder="Select a cell or enter formula" onkeydown="if(event.key==='Enter')ooSetFormula(this.value)"></div><div class="oo-toolgroup"><button onclick="ooAddSheet()">+ New sheet</button><button onclick="ooRenameSheet()">Rename</button><button onclick="ooDuplicateSheet()">Duplicate</button><button onclick="ooDeleteSheet()">Delete sheet</button></div></div>
+
+            <div id="oo-word-work" class="oo-workarea"><div class="oo-page-stack" id="oo-pages"><article class="oo-paper" contenteditable="true" spellcheck="true"><h1>Welcome to MediaMorph Office</h1><p>Start typing your document here. Use the ribbon above to format text, insert tables and images, and create page breaks.</p></article></div></div>
+            <div id="oo-excel-work" class="oo-workarea hidden"><div class="oo-sheetbar"><div id="oo-sheet-tabs" class="flex gap-1 items-center"></div><button class="oo-btn" onclick="ooAddSheet()" title="New worksheet">＋</button><span class="text-xs text-slate-400 ml-auto">Right-click a sheet tab for options</span></div><div class="oo-grid-wrap"><table id="oo-grid" class="oo-grid"></table></div></div>
+
+            <div class="oo-status"><span id="oo-status-left">Page 1 · A4 · 100%</span><span>Local browser workspace · Changes stay on this device until exported</span></div>
+            <p class="oo-disclaimer">Compatibility note: MediaMorph Office is an independent browser editor, not Microsoft Office. It supports common Word and spreadsheet workflows; advanced Excel features, macros, pivot tables, charts and some formatting may differ. Keep your original file as a backup.</p>
+            </div>
+          </div>
         </section>
 
         <section id="crop-studio" class="tab-content hidden space-y-6">
@@ -250,28 +397,28 @@
                 
                 <div class="lg:col-span-7 luxury-card p-4 sm:p-5 flex flex-col items-center">
                     
-                    <div id="crop-dropzone" class="w-full border border-dashed border-slate-700/80 rounded-2xl p-3.5 text-center cursor-pointer bg-slate-900/60 mb-4 hover:border-neon-cyan transition-colors">
-                        <input type="file" id="crop-file-input" class="hidden" accept="image/*" />
-                        <div class="flex items-center justify-center space-x-2 text-xs text-slate-300">
-                            <i class="fa-solid fa-image text-neon-cyan"></i>
-                            <span class="font-bold">Browse or Drop Image for Masking</span>
-                        </div>
-                        <div id="crop-selected-preview" class="hidden mt-3 flex items-center justify-center gap-3">
-                            <img id="crop-selected-thumb" alt="Selected image preview" class="h-16 w-16 rounded-xl object-cover border border-cyan-400/30">
-                            <span id="crop-selected-name" class="max-w-[220px] truncate text-[11px] text-slate-300"></span>
-                        </div>
-                    </div>
-
-                    <div class="w-full h-[300px] sm:h-[380px] relative rounded-2xl overflow-hidden checker-bg border border-white/10 flex items-center justify-center touch-none luxury-glow">
+                    <input type="file" id="crop-file-input" class="hidden" accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff,.avif,.heic,.heif,.svg" />
+                    <div id="crop-preview-panel" role="button" tabindex="0" aria-label="Click to browse or change image" title="Click to browse or change image" class="w-full h-[300px] sm:h-[380px] relative rounded-2xl overflow-hidden checker-bg border border-white/10 flex items-center justify-center touch-none luxury-glow cursor-pointer group">
+                        <img id="crop-selected-thumb" alt="" class="hidden" aria-hidden="true">
                         <canvas id="shape-crop-canvas" class="max-h-full max-w-full object-contain hidden cursor-grab active:cursor-grabbing"></canvas>
                         
-                        <div id="crop-empty-placeholder" class="text-center p-6 space-y-2">
+                        <div id="crop-empty-placeholder" class="text-center p-6 space-y-2 pointer-events-none">
                             <div class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-slate-500">
                                 <i class="fa-solid fa-shapes text-3xl"></i>
                             </div>
-                            <p class="text-slate-400 font-bold text-xs">No image loaded into workspace</p>
-                            <p class="text-[10px] text-slate-500">Select an image to unlock live controls</p>
+                            <p class="text-slate-200 font-bold text-xs">Click anywhere to browse an image</p>
+                            <p class="text-[10px] text-slate-400">PNG · JPG · WEBP · GIF · TIFF · and more</p>
                         </div>
+                        <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 pointer-events-none">
+                            <span id="crop-selected-name" class="hidden max-w-[65%] truncate rounded-lg border border-white/10 bg-slate-950/75 px-3 py-2 text-[10px] font-semibold text-slate-200 backdrop-blur-md"></span>
+                            <button type="button" id="crop-browse-button" class="pointer-events-auto ml-auto inline-flex items-center gap-2 rounded-xl border border-blue-300/30 bg-gradient-to-r from-blue-600/90 to-indigo-600/90 px-3.5 py-2.5 text-[10px] font-extrabold tracking-wide text-white shadow-lg shadow-blue-950/40 transition hover:brightness-110 active:scale-95"><i class="fa-solid fa-folder-open"></i><span id="crop-browse-label">BROWSE IMAGE</span></button>
+                        </div>
+                    </div>
+
+                    <div id="crop-zoom-control" class="w-full mt-3 rounded-2xl border border-blue-400/20 bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950/60 p-4 shadow-[0_12px_30px_rgba(2,6,23,.24)]">
+                        <div class="flex items-center justify-between gap-3 mb-2"><label for="slider-zoom" class="flex items-center gap-2 text-xs font-extrabold text-slate-200"><i class="fa-solid fa-magnifying-glass-plus text-blue-300"></i> SCALE / ZOOM</label><span id="val-zoom" class="rounded-lg border border-blue-300/20 bg-blue-500/10 px-2.5 py-1 text-xs font-black tabular-nums text-blue-200">100%</span></div>
+                        <input type="range" id="slider-zoom" min="50" max="250" value="100" class="w-full accent-blue-400" oninput="requestCanvasUpdate()">
+                        <div class="mt-1 flex justify-between text-[9px] font-semibold tracking-wide text-slate-500"><span>50%</span><span>100%</span><span>250%</span></div>
                     </div>
 
                     <div class="w-full mt-4 flex items-center justify-between">
@@ -286,53 +433,45 @@
                 </div>
 
                 <div class="lg:col-span-5 luxury-card p-5 space-y-5">
-                    <div>
-                        <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3">Mask Geometric Shape</h3>
+                    <div id="crop-shape-picker" class="scroll-mt-24">
+                        <div class="flex items-center justify-between mb-3"><h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-300">Mask Geometric Shape</h3><span class="text-[9px] uppercase tracking-[.18em] text-blue-300/80">Select one</span></div>
                         <div class="grid grid-cols-4 gap-2">
-                            <button onclick="setCropShape('rect')" class="shape-btn active btn-luxury p-2.5 rounded-xl border border-neon-cyan bg-cyan-950/30 text-center flex flex-col items-center" data-shape="rect">
-                                <i class="fa-regular fa-square text-lg text-neon-cyan"></i>
+                            <button onclick="setCropShape('rect')" class="shape-btn active btn-luxury p-2.5 rounded-xl border border-blue-400 bg-blue-600/35 text-center flex flex-col items-center text-white shadow-lg shadow-blue-500/10 ring-2 ring-blue-400/35 transition-all duration-200 hover:-translate-y-0.5" data-shape="rect">
+                                <i class="fa-regular fa-square text-lg text-white"></i>
                                 <span class="text-[10px] font-bold mt-1">Rect</span>
                             </button>
-                            <button onclick="setCropShape('circle')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/5 text-center flex flex-col items-center" data-shape="circle">
+                            <button onclick="setCropShape('circle')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/[0.035] text-center flex flex-col items-center text-slate-300 transition-all duration-200 hover:border-blue-400/50 hover:bg-white/[0.07] hover:-translate-y-0.5" data-shape="circle">
                                 <i class="fa-regular fa-circle text-lg text-slate-300"></i>
                                 <span class="text-[10px] font-bold mt-1">Circle</span>
                             </button>
-                            <button onclick="setCropShape('star')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/5 text-center flex flex-col items-center" data-shape="star">
+                            <button onclick="setCropShape('star')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/[0.035] text-center flex flex-col items-center text-slate-300 transition-all duration-200 hover:border-blue-400/50 hover:bg-white/[0.07] hover:-translate-y-0.5" data-shape="star">
                                 <i class="fa-regular fa-star text-lg text-slate-300"></i>
                                 <span class="text-[10px] font-bold mt-1">Star</span>
                             </button>
-                            <button onclick="setCropShape('heart')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/5 text-center flex flex-col items-center" data-shape="heart">
+                            <button onclick="setCropShape('heart')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/[0.035] text-center flex flex-col items-center text-slate-300 transition-all duration-200 hover:border-blue-400/50 hover:bg-white/[0.07] hover:-translate-y-0.5" data-shape="heart">
                                 <i class="fa-regular fa-heart text-lg text-slate-300"></i>
                                 <span class="text-[10px] font-bold mt-1">Heart</span>
                             </button>
-                            <button onclick="setCropShape('hexagon')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/5 text-center flex flex-col items-center" data-shape="hexagon">
+                            <button onclick="setCropShape('hexagon')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/[0.035] text-center flex flex-col items-center text-slate-300 transition-all duration-200 hover:border-blue-400/50 hover:bg-white/[0.07] hover:-translate-y-0.5" data-shape="hexagon">
                                 <i class="fa-solid fa-cube text-lg text-slate-300"></i>
                                 <span class="text-[10px] font-bold mt-1">Hexagon</span>
                             </button>
-                            <button onclick="setCropShape('oval')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/5 text-center flex flex-col items-center" data-shape="oval">
+                            <button onclick="setCropShape('oval')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/[0.035] text-center flex flex-col items-center text-slate-300 transition-all duration-200 hover:border-blue-400/50 hover:bg-white/[0.07] hover:-translate-y-0.5" data-shape="oval">
                                 <i class="fa-solid fa-egg text-lg text-slate-300"></i>
                                 <span class="text-[10px] font-bold mt-1">Oval</span>
                             </button>
-                            <button onclick="setCropShape('rounded')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/5 text-center flex flex-col items-center" data-shape="rounded">
+                            <button onclick="setCropShape('rounded')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/[0.035] text-center flex flex-col items-center text-slate-300 transition-all duration-200 hover:border-blue-400/50 hover:bg-white/[0.07] hover:-translate-y-0.5" data-shape="rounded">
                                 <i class="fa-solid fa-vector-square text-lg text-slate-300"></i>
                                 <span class="text-[10px] font-bold mt-1">Round</span>
                             </button>
-                            <button onclick="setCropShape('diamond')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/5 text-center flex flex-col items-center" data-shape="diamond">
+                            <button onclick="setCropShape('diamond')" class="shape-btn btn-luxury p-2.5 rounded-xl border border-white/10 bg-white/[0.035] text-center flex flex-col items-center text-slate-300 transition-all duration-200 hover:border-blue-400/50 hover:bg-white/[0.07] hover:-translate-y-0.5" data-shape="diamond">
                                 <i class="fa-solid fa-diamond text-lg text-slate-300"></i>
                                 <span class="text-[10px] font-bold mt-1">Diamond</span>
                             </button>
                         </div>
                     </div>
 
-                    <div class="space-y-4 pt-3 border-t border-white/10">
-                        <div class="space-y-1.5">
-                            <div class="flex justify-between text-xs font-bold">
-                                <span class="text-slate-400">Scale / Zoom</span>
-                                <span id="val-zoom" class="text-neon-cyan">100%</span>
-                            </div>
-                            <input type="range" id="slider-zoom" min="50" max="250" value="100" class="w-full" oninput="requestCanvasUpdate()">
-                        </div>
-
+                    <div id="crop-adjustment-controls" class="space-y-4 pt-3 border-t border-white/10">
                         <div class="space-y-1.5">
                             <div class="flex justify-between text-xs font-bold">
                                 <span class="text-slate-400">Rotation Angle</span>
@@ -363,20 +502,6 @@
                                 <span id="val-contrast" class="text-neon-cyan">100%</span>
                             </div>
                             <input type="range" id="slider-contrast" min="50" max="150" value="100" class="w-full" oninput="requestCanvasUpdate()">
-                        </div>
-                        <div class="space-y-1.5">
-                            <div class="flex justify-between text-xs font-bold">
-                                <span class="text-slate-400">Clarity</span>
-                                <span id="val-clarity" class="text-neon-cyan">0</span>
-                            </div>
-                            <input type="range" id="slider-clarity" min="0" max="100" value="0" class="w-full" oninput="requestCanvasUpdate()">
-                        </div>
-                        <div class="space-y-1.5">
-                            <div class="flex justify-between text-xs font-bold">
-                                <span class="text-slate-400">Sharpen</span>
-                                <span id="val-sharpen" class="text-neon-cyan">0</span>
-                            </div>
-                            <input type="range" id="slider-sharpen" min="0" max="100" value="0" class="w-full" oninput="requestCanvasUpdate()">
                         </div>
 
                         <div class="grid grid-cols-2 gap-3 pt-2">
@@ -414,7 +539,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
                 <div class="lg:col-span-6 luxury-card p-5 space-y-5">
                     <div id="drop-zone-img" class="border-2 border-dashed border-cyan-500/30 rounded-2xl p-7 text-center cursor-pointer bg-slate-900/40 hover:bg-slate-900/80 transition-all flex flex-col items-center justify-center space-y-3">
-                        <input type="file" id="img-file-input" class="hidden" accept="image/*" />
+                        <input type="file" id="img-file-input" class="hidden" accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff,.avif,.heic,.heif,.svg" />
                         <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-neon-cyan shadow-inner">
                             <i class="fa-solid fa-images text-2xl"></i>
                         </div>
@@ -490,66 +615,54 @@
                 <p class="text-xs text-slate-400 font-medium">Fast, private AI-image screening. Your image stays on your device and is processed locally.</p>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-                <div class="lg:col-span-5 luxury-card p-5 space-y-4">
-                    <div id="ai-dropzone" class="border-2 border-dashed border-cyan-500/30 rounded-2xl p-7 text-center cursor-pointer bg-slate-900/40 hover:bg-slate-900/80 transition-all flex flex-col items-center justify-center space-y-3">
+            <div class="max-w-4xl mx-auto space-y-5">
+                <div class="luxury-card rounded-3xl p-5 sm:p-7 space-y-5 shadow-xl shadow-cyan-950/20">
+                    <div id="ai-dropzone" class="group border-2 border-dashed border-cyan-400/40 rounded-3xl p-8 sm:p-10 text-center cursor-pointer bg-gradient-to-br from-cyan-950/25 via-slate-900/70 to-blue-950/25 hover:border-cyan-300 hover:shadow-lg hover:shadow-cyan-900/20 transition-all duration-300 flex flex-col items-center justify-center space-y-3 scroll-mt-6">
                         <input type="file" id="ai-file-input" class="hidden" accept="image/*,.avif,.heic" />
-                        <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-neon-cyan">
-                            <i class="fa-solid fa-fingerprint text-2xl"></i>
+                        <div id="ai-upload-prompt" class="flex flex-col items-center space-y-3">
+                            <div class="w-16 h-16 rounded-3xl bg-cyan-400/10 border border-cyan-300/25 flex items-center justify-center text-cyan-300 shadow-lg shadow-cyan-950/30 group-hover:scale-105 transition-transform">
+                                <i class="fa-solid fa-cloud-arrow-up text-2xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-white">Tap or drop image to analyze</p>
+                                <p class="text-[11px] text-slate-400 mt-1">JPEG, PNG, WebP, TIFF, AVIF and other browser-readable images</p>
+                            </div>
                         </div>
-                        <div>
-                            <p class="text-sm font-bold text-white">Select or drop an image</p>
-                            <p class="text-[11px] text-slate-400 mt-1">JPEG, PNG, WebP, TIFF and other browser-readable images</p>
-                        </div>
-                        <div id="ai-selected-preview" class="hidden mt-2 flex items-center justify-center gap-3">
-                            <img id="ai-selected-thumb" alt="Selected image preview" class="h-16 w-16 rounded-xl object-cover border border-cyan-400/30">
-                            <span id="ai-selected-name" class="max-w-[180px] truncate text-[11px] text-slate-300"></span>
-                        </div>
-                        <div id="ai-file-pill" class="hidden items-center space-x-2 bg-slate-800/90 border border-white/10 px-4 py-2 rounded-xl text-xs">
-                            <i class="fa-solid fa-file-image text-neon-cyan"></i>
-                            <span id="ai-file-name" class="max-w-[180px] truncate font-semibold"></span>
-                            <span id="ai-file-size" class="text-slate-400 text-[10px]"></span>
+                        <div id="ai-selected-preview" class="hidden w-full flex-col items-center gap-3">
+                            <img id="ai-selected-thumb" alt="Selected image full preview" class="block w-full h-[62vh] min-h-[360px] max-h-[78vh] object-contain rounded-2xl border border-cyan-400/25 bg-slate-950/80 shadow-2xl">
+                            <div id="ai-file-pill" class="flex items-center gap-2 bg-slate-800/90 border border-white/10 px-4 py-2 rounded-xl text-xs max-w-full">
+                                <i class="fa-solid fa-file-image text-neon-cyan"></i>
+                                <span id="ai-file-name" class="max-w-[65vw] truncate font-semibold"></span>
+                                <span id="ai-file-size" class="text-slate-400 text-[10px] shrink-0"></span>
+                            </div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <button type="button" id="ai-browse-btn" class="py-3 px-3 rounded-xl border border-cyan-400/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-200 text-xs font-extrabold transition-colors">
-                            <i class="fa-solid fa-folder-open mr-2"></i>BROWSE IMAGE
-                        </button>
-                        <button type="button" id="ai-paste-btn" class="py-3 px-3 rounded-xl border border-violet-400/30 bg-violet-500/10 hover:bg-violet-500/20 text-violet-200 text-xs font-extrabold transition-colors">
-                            <i class="fa-solid fa-paste mr-2"></i>PASTE IMAGE
+                    <div class="flex flex-col gap-3">
+                        <button id="btn-analyze-ai" disabled onclick="analyzeImageAuthenticity()" class="btn-luxury flex-1 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 font-extrabold text-xs text-black shadow-lg shadow-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-magnifying-glass-chart mr-2"></i>ANALYZE IMAGE
                         </button>
                     </div>
-                    <p id="ai-paste-hint" class="text-[10px] text-slate-500 text-center">Tip: Copy an image, then press Ctrl + V anywhere in this detector.</p>
-                    <button id="btn-analyze-ai" disabled onclick="analyzeImageAuthenticity()" class="btn-luxury w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 font-extrabold text-xs text-black shadow-lg shadow-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed">
-                        <i class="fa-solid fa-magnifying-glass-chart mr-2"></i>ANALYZE IMAGE
-                    </button>
+                    <p id="ai-paste-hint" class="text-[10px] text-slate-500 text-center">Click this same upload area to browse, drag & drop an image, or paste with Ctrl + V.</p>
                     <div class="text-[11px] text-slate-500 leading-relaxed">
                         <i class="fa-solid fa-lock text-emerald-400 mr-1"></i>
                         Private local analysis: your image is not uploaded. Processing happens on your device. The first setup downloads a required file once for this browser; later visits reuse its saved copy. Results are screening estimates, not proof.
                     </div>
                 </div>
 
-                <div class="lg:col-span-7 luxury-card p-5 space-y-4">
+                <div id="ai-forensic-report" class="luxury-card p-5 sm:p-7 space-y-4 scroll-mt-6">
                     <div class="flex items-center justify-between gap-3">
                         <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Forensic report</h3>
                         <span id="ai-verdict" class="text-[10px] font-extrabold px-3 py-1.5 rounded-full bg-slate-800 text-slate-300">WAITING FOR IMAGE</span>
                     </div>
-                    <div id="ai-summary" class="text-sm text-slate-300 leading-relaxed">
-                        Select an image to run a fast local AI-generation screening check.
-                    </div>
+                    <div id="ai-summary" class="text-sm text-slate-300 leading-relaxed">Select an image to run a fast local AI-generation screening check.</div>
                     <div id="ai-progress-wrap" class="hidden space-y-3 rounded-xl border border-cyan-400/20 bg-slate-950/70 p-4">
                         <div class="flex items-center justify-between gap-3">
-                            <div class="flex items-center gap-2 text-xs font-bold text-cyan-300">
-                                <i class="fa-solid fa-circle-notch fa-spin"></i><span id="ai-progress-title">Starting forensic checks...</span>
-                            </div>
+                            <div class="flex items-center gap-2 text-xs font-bold text-cyan-300"><i class="fa-solid fa-circle-notch fa-spin"></i><span id="ai-progress-title">Starting forensic checks...</span></div>
                             <span id="ai-progress-percent" class="text-[11px] font-bold tabular-nums text-slate-400">0%</span>
                         </div>
-                        <div class="h-2 w-full overflow-hidden rounded-full bg-slate-800">
-                            <div id="ai-progress-bar" class="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-500" style="width:0%"></div>
-                        </div>
+                        <div class="h-2 w-full overflow-hidden rounded-full bg-slate-800"><div id="ai-progress-bar" class="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-500" style="width:0%"></div></div>
                         <div id="ai-progress-steps" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-slate-500"></div>
                     </div>
-
                     <div class="border-t border-white/10 pt-3 text-[10px] text-amber-300/90 leading-relaxed">
                         <i class="fa-solid fa-triangle-exclamation mr-1"></i>
                         Important: metadata can be stripped, edited or copied. Missing EXIF does not prove AI generation; valid camera EXIF does not prove authenticity. ICC profiles are commonly used by both real photos and generated images. C2PA is meaningful only when its signed manifest is successfully verified.
@@ -558,9 +671,23 @@
             </div>
         </section>
 
+        <section id="cv-maker" class="tab-content hidden">
+            <div class="luxury-card">
+                <div id="cvaurum-frame-wrap">
+                    <iframe id="cvaurum-frame"
+                        src="https://sheikhaltamash4871-prog.github.io/mediamorph/models/CVAurum-main/app"
+                        title="CVAurum Free CV Builder"
+                        loading="eager"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        allow="clipboard-read; clipboard-write"
+                        style="width:100%;height:100%;border:0;background:#fff;">
+                    </iframe>
+                </div>
+            </div>
+        </section>
     </main>
 
-    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-dark-base border-t border-white/10 z-50 px-1 py-2 flex justify-around">
+    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-dark-base border-t border-white/10 z-50 px-0.5 py-2 flex justify-around gap-0">
         <button onclick="switchTab('pdf-tools')" id="mobile-nav-pdf-tools" class="mobile-nav-tab nav-glow active flex-1 py-2 text-center text-[11px] font-bold rounded-xl mx-0.5 transition-all">
             <i class="fa-solid fa-file-pdf block text-base mb-0.5"></i>Converter
         </button>
@@ -573,12 +700,18 @@
         <button onclick="switchTab('ai-detector')" id="mobile-nav-ai-detector" class="mobile-nav-tab flex-1 py-2 text-center text-[10px] font-bold text-slate-400 rounded-xl mx-0.5 transition-all">
             <i class="fa-solid fa-magnifying-glass-chart block text-base mb-0.5"></i>AI Detect
         </button>
+        <button onclick="switchTab('cv-maker')" id="mobile-nav-cv-maker" class="mobile-nav-tab flex-1 py-2 text-center text-[10px] font-bold text-slate-400 rounded-xl mx-0.5 transition-all">
+            <i class="fa-solid fa-file-user block text-base mb-0.5"></i>CV Maker
+        </button>
+        <button onclick="switchTab('office-studio')" id="mobile-nav-office-studio" class="mobile-nav-tab flex-1 py-2 text-center text-[10px] font-bold text-slate-400 rounded-xl mx-0.5 transition-all">
+            <i class="fa-solid fa-file-word block text-base mb-0.5"></i>Office
+        </button>
     </div>
 
     <footer class="hidden md:block border-t border-white/5 py-4 px-4 bg-dark-base">
         <div class="max-w-6xl mx-auto flex items-center justify-between text-xs text-slate-500 font-medium">
             <span><i class="fa-solid fa-shield-halved text-neon-cyan mr-1.5"></i> Zero Server Uploads • Private Browser Engine</span>
-            <span>OmniStudio Luxury Edition</span>
+            <span>MediaMorph Luxury Edition</span>
         </div>
     </footer>
 
@@ -607,9 +740,33 @@
             gsap.from('#pdf-tools', { y: 20, opacity: 0, duration: 0.4, delay: 0.1, ease: "power2.out" });
 
             setupDropZone('drop-zone-doc', 'doc-file-input', handleDocSelect);
-            setupDropZone('crop-dropzone', 'crop-file-input', handleCropImageSelect);
+            const docZone = document.getElementById('drop-zone-doc');
+            const docPreview = document.getElementById('doc-source-preview');
+            if (docZone && docPreview) { docZone.appendChild(docPreview); docPreview.classList.add('w-full','mt-2'); }
+            document.getElementById('doc-output-format').addEventListener('change', updateDocTargetPreview);
             setupDropZone('drop-zone-img', 'img-file-input', handleImageToolSelect);
             setupCanvasPanEvents();
+            const cropPreviewPanel = document.getElementById('crop-preview-panel');
+            const cropFileInput = document.getElementById('crop-file-input');
+            if (cropPreviewPanel && cropFileInput) {
+                const openCropBrowser = () => cropFileInput.click();
+                cropPreviewPanel.addEventListener('click', (event) => {
+                    // Keep canvas taps available for touch positioning; the empty preview and browse chip open the picker.
+                    if (event.target.closest('#crop-browse-button')) { event.stopPropagation(); openCropBrowser(); return; }
+                    if (event.target.id !== 'shape-crop-canvas') openCropBrowser();
+                });
+                document.getElementById('crop-browse-button')?.addEventListener('click', (event) => { event.stopPropagation(); openCropBrowser(); });
+                cropPreviewPanel.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openCropBrowser(); }
+                });
+                cropPreviewPanel.addEventListener('dragover', (event) => { event.preventDefault(); cropPreviewPanel.classList.add('border-blue-400'); });
+                cropPreviewPanel.addEventListener('dragleave', () => cropPreviewPanel.classList.remove('border-blue-400'));
+                cropPreviewPanel.addEventListener('drop', (event) => {
+                    event.preventDefault(); cropPreviewPanel.classList.remove('border-blue-400');
+                    const file = event.dataTransfer?.files?.[0]; if (file) handleCropImageSelect(file);
+                });
+                cropFileInput.addEventListener('change', () => { if (cropFileInput.files?.[0]) handleCropImageSelect(cropFileInput.files[0]); });
+            }
 
             document.getElementById('txt-direct-input').addEventListener('input', (e) => {
                 if (currentDocMode === 'txt-to-pdf') {
@@ -623,24 +780,34 @@
             });
         });
 
+        let lastPartyPopperAt = 0;
         function triggerPartyPopper(e) {
-            let x = 0.5;
-            let y = 0.5;
-            if (e && e.clientX && e.clientY) {
-                x = e.clientX / window.innerWidth;
-                y = e.clientY / window.innerHeight;
+            const now = Date.now();
+            if (now - lastPartyPopperAt < 450) return;
+            lastPartyPopperAt = now;
+            let x = 0.5, y = 0.5;
+            if (e && Number.isFinite(e.clientX) && Number.isFinite(e.clientY)) {
+                x = Math.max(0, Math.min(1, e.clientX / window.innerWidth));
+                y = Math.max(0, Math.min(1, e.clientY / window.innerHeight));
             }
-            confetti({
-                particleCount: 80,
-                spread: 70,
-                origin: { x: x, y: y },
-                colors: ['#00f2fe', '#4facfe', '#10b981', '#f43f5e', '#fbbf24']
-            });
+            if (typeof confetti === 'function') {
+                confetti({ particleCount: 110, spread: 78, startVelocity: 38, ticks: 190,
+                    origin: { x, y }, colors: ['#00f2fe', '#4facfe', '#10b981', '#f43f5e', '#fbbf24', '#a78bfa'] });
+            }
         }
+        // Any clearly-labelled Download / Export action across MediaMorph gets the celebration.
+        document.addEventListener('click', function (ev) {
+            const control = ev.target.closest('button, a, input[type="button"], input[type="submit"]');
+            if (!control) return;
+            const label = ((control.innerText || control.value || '') + ' ' + (control.getAttribute('aria-label') || '') + ' ' + (control.id || '') + ' ' + (control.title || '')).toLowerCase();
+            if (/download|export|save as/.test(label)) triggerPartyPopper(ev);
+        }, true);
 
         function switchTab(tabId) {
             if (tabId === currentTab) return;
 
+            document.body.classList.toggle('cv-maker-active', tabId === 'cv-maker');
+            document.body.classList.toggle('oo-active', tabId === 'office-studio');
             document.getElementById(currentTab).classList.add('hidden');
             document.getElementById(tabId).classList.remove('hidden');
 
@@ -669,45 +836,23 @@
             currentTab = tabId;
         }
 
+        function smoothScrollToElement(elementOrId, offset = 18) {
+            const el = typeof elementOrId === 'string' ? document.getElementById(elementOrId) : elementOrId;
+            if (!el) return;
+            const top = el.getBoundingClientRect().top + window.pageYOffset - offset;
+            window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+        }
+
         function setDocMode(mode) {
             currentDocMode = mode;
-            document.querySelectorAll('.doc-mode-btn').forEach(btn => {
-                btn.classList.remove('border-neon-cyan', 'bg-cyan-950/30');
-            });
-            document.getElementById(`mode-${mode}`).classList.add('border-neon-cyan', 'bg-cyan-950/30');
-
-            const optionsPanel = document.getElementById('doc-options-panel');
-            const txtInput = document.getElementById('txt-input-container');
-            const pageOpts = document.getElementById('pdf-page-orientation');
-
-            optionsPanel.classList.remove('hidden');
-            txtInput.classList.add('hidden');
-            pageOpts.classList.add('hidden');
-
-            if (mode === 'pdf-to-docx') {
-                document.getElementById('doc-upload-title').innerText = 'Tap or drop PDF file';
-                document.getElementById('doc-upload-desc').innerText = 'Extracts layout & text into editable DOCX';
-            } else if (mode === 'docx-to-pdf') {
-                document.getElementById('doc-upload-title').innerText = 'Tap or drop document (.docx)';
-                document.getElementById('doc-upload-desc').innerText = 'Converts document text directly into PDF';
-                pageOpts.classList.remove('hidden');
-            } else if (mode === 'img-to-pdf') {
-                document.getElementById('doc-upload-title').innerText = 'Tap or drop photo';
-                document.getElementById('doc-upload-desc').innerText = 'Converts image into single or multi page PDF';
-                pageOpts.classList.remove('hidden');
-            } else if (mode === 'txt-to-pdf') {
-                document.getElementById('doc-upload-title').innerText = 'Tap or drop text file';
-                document.getElementById('doc-upload-desc').innerText = 'Convert raw text into formatted PDF';
-                txtInput.classList.remove('hidden');
-                pageOpts.classList.remove('hidden');
-            }
+            document.getElementById('doc-options-panel').classList.remove('hidden');
         }
 
         function setupDropZone(zoneId, inputId, callback) {
             const zone = document.getElementById(zoneId);
             const input = document.getElementById(inputId);
 
-            zone.addEventListener('click', () => input.click());
+            zone.addEventListener('click', (e) => { if (e.target !== input) { input.value = ''; input.click(); } });
 
             zone.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -734,17 +879,364 @@
             });
         }
 
-        function handleDocSelect(file) {
-            loadedDocFile = file;
-            document.getElementById('doc-file-name').innerText = file.name;
-            document.getElementById('doc-file-size').innerText = `(${(file.size / 1024 / 1024).toFixed(1)} MB)`;
-            const pill = document.getElementById('doc-file-pill');
-            pill.classList.remove('hidden');
-            pill.classList.add('flex');
+        const DOC_FORMATS = {
+            document: [
+                ['WORD PROCESSING', [['doc','DOC — Word 97-2003'],['docx','DOCX — Word Document'],['word','WORD — Word Document']]],
+                ['DOCUMENT & WEB', [['pdf','PDF — Portable Document'],['odt','ODT — OpenDocument'],['html','HTML — Web Page'],['rtf','RTF — Rich Text']]],
+                ['TEXT & PRINT', [['txt','TXT — Plain Text'],['text','TEXT — Plain Text'],['ps','PS — PostScript']]]
+            ],
+            spreadsheet: [
+                ['SPREADSHEET', [['excel','EXCEL — Excel Workbook'],['xls','XLS — Excel 97-2003'],['xlsx','XLSX — Excel Workbook']]]
+            ],
+            presentation: [
+                ['PRESENTATION', [['ppt','PPT — PowerPoint 97-2003'],['pptx','PPTX — PowerPoint Presentation']]],
+                ['DOCUMENT EXPORT', [['pdf','PDF — Portable Document'],['txt','TXT — Plain Text'],['text','TEXT — Plain Text']]]
+            ],
+            image: [
+                ['IMAGE FORMATS', [['png','PNG — Portable Network Graphics'],['jpg','JPG — JPEG Image'],['webp','WEBP — WebP Image'],['pdf','PDF — Portable Document']]]
+            ]
+        };
 
+        function getDocCategory(ext) {
+            if (['xls','xlsx','csv'].includes(ext)) return 'spreadsheet';
+            if (['ppt','pptx'].includes(ext)) return 'presentation';
+            if (['png','jpg','jpeg','webp','gif','bmp','tif','tiff','avif','heic','heif','svg'].includes(ext)) return 'image';
+            return 'document';
+        }
+
+        function getDefaultOutput(ext, category) {
+            if (category === 'image') return ext === 'png' ? 'jpg' : 'png';
+            if (category === 'spreadsheet') return ext === 'xls' ? 'xlsx' : (ext === 'xlsx' ? 'xls' : 'xlsx');
+            if (category === 'presentation') return ext === 'ppt' ? 'pptx' : 'pdf';
+            if (ext === 'pdf') return 'docx';
+            if (['doc','docx'].includes(ext)) return 'pdf';
+            if (ext === 'odt') return 'docx';
+            if (['html','htm'].includes(ext)) return 'pdf';
+            if (ext === 'rtf') return 'docx';
+            return 'pdf';
+        }
+
+        function updateDocTargetPreview() {
+            const select = document.getElementById('doc-output-format');
+            const selected = select.options[select.selectedIndex];
+            document.getElementById('doc-target-label').innerText = selected ? selected.value.toUpperCase() : '—';
+            document.querySelectorAll('#doc-format-buttons button').forEach(btn => {
+                const active = btn.dataset.format === select.value;
+                btn.classList.toggle('border-cyan-300', active);
+                btn.classList.toggle('bg-cyan-400/15', active);
+                btn.classList.toggle('text-cyan-200', active);
+                btn.classList.toggle('ring-2', active);
+                btn.classList.toggle('ring-cyan-400/20', active);
+                btn.classList.toggle('border-white/10', !active);
+                btn.classList.toggle('bg-slate-950/70', !active);
+                btn.classList.toggle('text-slate-300', !active);
+            });
+        }
+
+        function populateDocFormats(ext) {
+            const category = getDocCategory(ext);
+            const select = document.getElementById('doc-output-format');
+            const buttonWrap = document.getElementById('doc-format-buttons');
+            const formats = DOC_FORMATS[category];
+            const preferred = getDefaultOutput(ext, category);
+            select.innerHTML = '';
+            buttonWrap.innerHTML = '';
+            formats.forEach(([groupName, entries]) => {
+                entries.forEach(([value, label]) => {
+                    const normalizedImageExt = ext === 'jpeg' ? 'jpg' : ext;
+                    const sameFormat = (category === 'image' && value === normalizedImageExt) || value === ext || (ext === 'htm' && value === 'html') || (['doc','docx','word'].includes(ext) && ['docx','word'].includes(value) && ext !== 'doc') || (['xlsx','excel'].includes(ext) && ['xlsx','excel'].includes(value)) || (['pptx','ppt'].includes(ext) && value === ext);
+                    if (sameFormat) return;
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = label;
+                    select.appendChild(option);
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.dataset.format = value;
+                    button.className = 'min-h-[58px] rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-3 text-left transition-all hover:border-cyan-300/70 hover:bg-cyan-400/10 focus:outline-none focus:ring-2 focus:ring-cyan-400/30';
+                    const shortName = value.toUpperCase();
+                    const detail = label.split('—')[1]?.trim() || groupName;
+                    button.innerHTML = `<span class="block text-sm font-black tracking-wide">${shortName}</span><span class="block text-[9px] mt-1 opacity-70 leading-tight">${detail}</span>`;
+                    button.addEventListener('click', () => {
+                        select.value = value;
+                        updateDocTargetPreview();
+                    });
+                    buttonWrap.appendChild(button);
+                });
+            });
+            const all = Array.from(select.options);
+            const chosen = all.find(o => o.value === preferred) || all[0];
+            if (chosen) chosen.selected = true;
+            const typeNames = {document:'DOCUMENT FILE', spreadsheet:'SPREADSHEET', presentation:'PRESENTATION', image:'IMAGE FILE'};
+            document.getElementById('doc-source-type').innerText = typeNames[category];
+            document.getElementById('doc-source-label').innerText = ext.toUpperCase() + ' FILE';
+            document.getElementById('doc-format-help').innerText = category === 'document'
+                ? 'Tap a format button to select your document output.'
+                : category === 'spreadsheet'
+                    ? 'Tap a format button to select your spreadsheet output.'
+                    : category === 'image'
+                        ? 'Choose PNG, JPG, WebP or PDF to convert your image.'
+                        : 'Tap a format button to select your presentation or document output.';
+            updateDocTargetPreview();
+        }
+
+        function handleDocSelect(file) {
+            if (!file) return;
+            loadedDocFile = file;
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            populateDocFormats(ext);
+            document.getElementById('doc-file-name').innerText = file.name;
+            document.getElementById('doc-file-size').innerText = `(${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+            const pill = document.getElementById('doc-file-pill');
+            pill.classList.remove('hidden'); pill.classList.add('flex');
+            document.getElementById('doc-upload-title').innerText = file.name;
+            document.getElementById('doc-upload-desc').innerText = file.size === 0 ? `${ext.toUpperCase()} empty file selected · it will still be converted` : `${ext.toUpperCase()} file selected · choose an output format below`;
+            const icon = document.getElementById('doc-input-icon');
+            icon.className = 'fa-solid ' + (['xls','xlsx','csv'].includes(ext) ? 'fa-file-excel' : ['ppt','pptx'].includes(ext) ? 'fa-file-powerpoint' : ext === 'pdf' ? 'fa-file-pdf' : ['png','jpg','jpeg','webp','gif','bmp','tif','tiff','avif','heic','heif','svg'].includes(ext) ? 'fa-file-image' : 'fa-file-word') + ' text-2xl';
             document.getElementById('doc-options-panel').classList.remove('hidden');
             document.getElementById('btn-convert-doc').removeAttribute('disabled');
             document.getElementById('btn-download-doc').classList.add('hidden');
+            document.getElementById('doc-progress-container').classList.add('hidden');
+            renderDocSourcePreview(file);
+            requestAnimationFrame(() => setTimeout(() => smoothScrollToElement('doc-format-card', Math.max(220, Math.min(310, window.innerHeight * 0.36))), 140));
+        }
+
+        function renderDocSourcePreview(file) {
+            const wrap = document.getElementById('doc-source-preview');
+            const content = document.getElementById('doc-preview-content');
+            const kind = document.getElementById('doc-preview-kind');
+            if (!wrap || !content) return;
+            wrap.classList.remove('hidden'); content.innerHTML = '';
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            kind.textContent = `${ext.toUpperCase()} · ${(file.size/1024/1024).toFixed(2)} MB`;
+            content.className = 'w-full min-h-[180px] max-h-[48vh] overflow-hidden rounded-xl bg-slate-950 border border-white/10 flex items-center justify-center';
+            if (file.size === 0) {
+                content.innerHTML = '<div class="p-8 text-center text-slate-400 text-sm"><i class="fa-regular fa-file-lines text-4xl block mb-3 text-cyan-300"></i>Empty file · blank page preview</div>';
+                return;
+            }
+            const url = URL.createObjectURL(file);
+            if (file.type.startsWith('image/')) {
+                const img = document.createElement('img'); img.src = url;
+                img.className = 'block max-w-full max-h-[46vh] object-contain'; img.alt = 'Selected file page preview'; content.appendChild(img);
+            } else if (ext === 'pdf' && window.pdfjsLib) {
+                const status = document.createElement('div'); status.className='text-xs text-slate-400 p-4'; status.textContent='Rendering first page preview…'; content.appendChild(status);
+                file.arrayBuffer().then(buf => pdfjsLib.getDocument({data:buf}).promise).then(pdf => pdf.getPage(1)).then(page => {
+                    const viewport = page.getViewport({scale:1});
+                    const scale = Math.min(1.6, 900 / viewport.width, 520 / viewport.height);
+                    const view = page.getViewport({scale}); const canvas=document.createElement('canvas');
+                    canvas.width=Math.ceil(view.width); canvas.height=Math.ceil(view.height);
+                    canvas.className='max-w-full max-h-[46vh] object-contain';
+                    return page.render({canvasContext:canvas.getContext('2d'),viewport:view}).promise.then(()=>{content.innerHTML='';content.appendChild(canvas);});
+                }).catch(()=>{content.innerHTML='<div class="p-6 text-center text-xs text-slate-400">Page preview unavailable for this PDF.</div>';});
+            } else {
+                const labels={doc:'Word document',docx:'Word document',odt:'OpenDocument text',xls:'Excel workbook',xlsx:'Excel workbook',csv:'Spreadsheet',ppt:'PowerPoint presentation',pptx:'PowerPoint presentation',ps:'PostScript document',rtf:'Rich Text document',html:'HTML document',htm:'HTML document',txt:'Text document',text:'Text document'};
+                const icon=['xls','xlsx','csv'].includes(ext)?'fa-file-excel':['ppt','pptx'].includes(ext)?'fa-file-powerpoint':ext==='pdf'?'fa-file-pdf':'fa-file-word';
+                content.innerHTML=`<div class="w-full p-6 flex flex-col items-center justify-center gap-2"><div class="w-24 h-32 rounded-lg border border-cyan-400/30 bg-gradient-to-br from-slate-800 to-slate-950 shadow-xl flex flex-col items-center justify-center"><i class="fa-solid ${icon} text-4xl text-cyan-300"></i><span class="text-[10px] font-black text-cyan-200 mt-3">${ext.toUpperCase()}</span></div><p class="text-xs font-bold text-slate-200">${labels[ext]||'Selected file'}</p><p class="text-[10px] text-slate-500">File page thumbnail · content is not extracted for preview</p></div>`;
+            }
+        }
+
+        function xmlEscape(value) {
+            return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+        }
+
+        function makeParagraphXml(text) {
+            return String(text || '').split(/\r?\n/).map(line => `<w:p><w:r><w:t xml:space="preserve">${xmlEscape(line)}</w:t></w:r></w:p>`).join('');
+        }
+
+        async function extractDocumentText(file) {
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            if (ext === 'pdf') {
+                const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+                const pages = [];
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    pages.push(content.items.map(item => item.str).join(' '));
+                }
+                return pages.join('\n\n');
+            }
+            if (ext === 'docx') {
+                const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+                return result.value || '';
+            }
+            if (['xlsx','xls','csv'].includes(ext)) {
+                if (!window.XLSX) throw new Error('Excel engine could not load. Check your internet connection.');
+                const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+                return wb.SheetNames.map(name => `--- ${name} ---\n` + XLSX.utils.sheet_to_csv(wb.Sheets[name])).join('\n\n');
+            }
+            if (ext === 'pptx' || ext === 'odt') {
+                if (!window.JSZip) throw new Error('Document engine could not load. Check your internet connection.');
+                const zip = await JSZip.loadAsync(await file.arrayBuffer());
+                const names = Object.keys(zip.files).filter(n => ext === 'pptx' ? /^ppt\/slides\/slide\d+\.xml$/.test(n) : n === 'content.xml').sort();
+                const chunks = [];
+                for (const name of names) {
+                    const xml = await zip.file(name).async('text');
+                    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+                    chunks.push(Array.from(doc.getElementsByTagName('*')).filter(el => el.localName === 't').map(el => el.textContent).join(' '));
+                }
+                return chunks.join('\n\n');
+            }
+            let text = await file.text();
+            if (ext === 'html' || ext === 'htm') {
+                const doc = new DOMParser().parseFromString(text, 'text/html');
+                return doc.body ? doc.body.innerText : text.replace(/<[^>]*>/g, ' ');
+            }
+            if (ext === 'rtf') return text.replace(/\\'[0-9a-f]{2}/gi, ' ').replace(/\\[a-z]+-?\d* ?/gi, ' ').replace(/[{}]/g, '').replace(/\\par\b/g, '\n');
+            if (ext === 'ps') return text.replace(/^%.*$/gm, '').replace(/\b(showpage|newpath|moveto|lineto|stroke|fill|setfont|findfont|scalefont|setfont)\b/g, ' ');
+            if (['doc','ppt'].includes(ext)) return text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+            return text;
+        }
+
+        async function createDocx(text) {
+            const zip = new JSZip();
+            zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
+            zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+            zip.folder('word').file('document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${makeParagraphXml(text)}<w:sectPr/></w:body></w:document>`);
+            return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+        }
+
+        async function createOdt(text) {
+            const zip = new JSZip();
+            zip.file('mimetype', 'application/vnd.oasis.opendocument.text', { compression: 'STORE' });
+            const paras = String(text || '').split(/\r?\n/).map(line => `<text:p>${xmlEscape(line)}</text:p>`).join('');
+            zip.file('content.xml', `<?xml version="1.0" encoding="UTF-8"?><office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.2"><office:body><office:text>${paras}</office:text></office:body></office:document-content>`);
+            zip.file('styles.xml', `<?xml version="1.0" encoding="UTF-8"?><office:document-styles xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" office:version="1.2"/>`);
+            zip.file('META-INF/manifest.xml', `<?xml version="1.0" encoding="UTF-8"?><manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.2"><manifest:file-entry manifest:full-path="/" manifest:media-type="application/vnd.oasis.opendocument.text"/><manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/><manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/></manifest:manifest>`);
+            return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.oasis.opendocument.text' });
+        }
+
+        async function createPptx(text) {
+            const zip = new JSZip();
+            const esc = xmlEscape(text).replace(/\r?\n/g, '</a:t></a:r></a:p><a:p><a:r><a:t>');
+            zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slides/slide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/></Types>`);
+            zip.folder('_rels').file('.rels', `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/></Relationships>`);
+            zip.folder('ppt').file('presentation.xml', `<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst><p:sldSz cx="9144000" cy="5143500"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>`);
+            zip.folder('ppt').folder('_rels').file('presentation.xml.rels', `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/></Relationships>`);
+            zip.folder('ppt').folder('slides').file('slide1.xml', `<?xml version="1.0" encoding="UTF-8"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvGrpSpPr/></p:nvGrpSpPr><p:grpSpPr/><p:sp><p:nvSpPr><p:cNvPr id="2" name="TextBox 1"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="457200" y="457200"/><a:ext cx="8229600" cy="4229100"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr wrap="square"/><a:lstStyle/><a:p><a:r><a:t>${esc}</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld></p:sld>`);
+            return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+        }
+
+        async function officeImportFile(file) {
+            if (!file) return;
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            const allowed = ['docx','xlsx','xls','csv','pptx','txt'];
+            if (!allowed.includes(ext)) { alert('Supported files: DOCX, XLSX, XLS, CSV, PPTX and TXT.'); return; }
+            officeCurrentFile = file; officeCurrentType = ext;
+            document.getElementById('office-file-title').textContent = file.name;
+            document.getElementById('office-export-btn').disabled = false;
+            document.getElementById('office-toolbar').classList.add('hidden');
+            ['office-doc-editor','office-sheet-wrap','office-slides-editor'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            try {
+                if (['docx','txt'].includes(ext)) {
+                    let html = '';
+                    if (ext === 'docx') {
+                        if (!window.mammoth) throw new Error('Word reader library did not load. Refresh while connected to internet.');
+                        const result = await mammoth.convertToHtml({arrayBuffer: await file.arrayBuffer()});
+                        html = result.value || '<p></p>';
+                    } else {
+                        html = '<p>' + officeEscape(await file.text()).replace(/\r?\n/g,'</p><p>') + '</p>';
+                    }
+                    const editor = document.getElementById('office-doc-editor'); editor.innerHTML = html; editor.classList.remove('hidden');
+                    document.getElementById('office-toolbar').classList.remove('hidden');
+                } else if (['xlsx','xls','csv'].includes(ext)) {
+                    if (!window.XLSX) throw new Error('Spreadsheet engine did not load. Refresh while connected to internet.');
+                    officeWorkbook = XLSX.read(await file.arrayBuffer(), {type:'array', cellStyles:true});
+                    officeRenderSheet();
+                } else if (ext === 'pptx') {
+                    if (!window.JSZip) throw new Error('Presentation reader did not load.');
+                    const zip = await JSZip.loadAsync(file);
+                    const names = Object.keys(zip.files).filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a,b)=>Number(a.match(/slide(\d+)/)[1])-Number(b.match(/slide(\d+)/)[1]));
+                    officeSlideTexts = [];
+                    for (const name of names) {
+                        const xml = new DOMParser().parseFromString(await zip.file(name).async('text'),'text/xml');
+                        officeSlideTexts.push(Array.from(xml.getElementsByTagName('a:t')).map(n=>n.textContent).join('\n') || '');
+                    }
+                    if (!officeSlideTexts.length) officeSlideTexts = [''];
+                    officeRenderSlides();
+                }
+                document.getElementById('office-status').textContent = 'File opened. Changes are made locally; click Export Same Format when finished.';
+            } catch (err) {
+                console.error(err); document.getElementById('office-status').textContent = err.message || 'Could not open this file.';
+                document.getElementById('office-export-btn').disabled = true;
+            }
+        }
+        function officeEscape(v) { return String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+        function officeRenderSheet() {
+            const wrap=document.getElementById('office-sheet-wrap'), table=document.getElementById('office-sheet');
+            const sheet=officeWorkbook.Sheets[officeWorkbook.SheetNames[0]]; const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+            const maxCols=Math.max(1,...rows.map(r=>r.length));
+            table.innerHTML=rows.map((row,ri)=>'<tr>'+Array.from({length:maxCols},(_,ci)=>`<td contenteditable="true" data-r="${ri}" data-c="${ci}" class="border border-slate-300 px-3 py-2 min-w-[110px] focus:bg-blue-50">${officeEscape(row[ci] ?? '')}</td>`).join('')+'</tr>').join('');
+            table.querySelectorAll('td').forEach(td=>td.addEventListener('input',()=>{const r=Number(td.dataset.r),c=Number(td.dataset.c); rows[r][c]=td.innerText; officeWorkbook.Sheets[officeWorkbook.SheetNames[0]]=XLSX.utils.aoa_to_sheet(rows);}));
+            wrap.classList.remove('hidden');
+        }
+        function officeAddSheetRow() {
+            if (!officeWorkbook) return; const sheet=officeWorkbook.Sheets[officeWorkbook.SheetNames[0]];
+            const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''}); rows.push(Array(Math.max(1,...rows.map(r=>r.length))).fill(''));
+            officeWorkbook.Sheets[officeWorkbook.SheetNames[0]]=XLSX.utils.aoa_to_sheet(rows); officeRenderSheet();
+        }
+        function officeRenderSlides() {
+            const host=document.getElementById('office-slides-editor'); host.innerHTML='';
+            officeSlideTexts.forEach((value,i)=>{const card=document.createElement('div');card.className='bg-white text-slate-900 rounded-2xl p-4';card.innerHTML=`<div class="flex justify-between items-center mb-2"><b class="text-sm">Slide ${i+1}</b><span class="text-xs text-slate-500">Edit slide text</span></div><textarea class="w-full min-h-[180px] border border-slate-300 rounded-xl p-4 text-slate-900" data-slide="${i}"></textarea>`;card.querySelector('textarea').value=value;card.querySelector('textarea').addEventListener('input',e=>officeSlideTexts[i]=e.target.value);host.appendChild(card);});
+            host.classList.remove('hidden');
+        }
+        async function officeExportFile() {
+            if (!officeCurrentFile) return;
+            const ext=officeCurrentType, base=officeCurrentFile.name.replace(/\.[^.]+$/,''); let blob, mime;
+            try {
+                if (ext==='docx') {
+                    const text=document.getElementById('office-doc-editor').innerText;
+                    blob=await createDocx(text); mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                } else if (ext==='txt') {
+                    blob=new Blob([document.getElementById('office-doc-editor').innerText],{type:'text/plain;charset=utf-8'}); mime='text/plain';
+                } else if (['xlsx','xls','csv'].includes(ext)) {
+                    const type=ext==='xls'?'biff8':ext==='csv'?'csv':'xlsx';
+                    if (ext==='csv') { const csv=XLSX.utils.sheet_to_csv(officeWorkbook.Sheets[officeWorkbook.SheetNames[0]]); blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); }
+                    else { const bytes=XLSX.write(officeWorkbook,{bookType:type,type:'array'}); blob=new Blob([bytes],{type:ext==='xls'?'application/vnd.ms-excel':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}); }
+                    mime=blob.type;
+                } else if (ext==='pptx') {
+                    if (!window.PptxGenJS) throw new Error('PowerPoint export engine did not load. Refresh while connected to internet.');
+                    const pptx=new PptxGenJS(); pptx.layout='LAYOUT_WIDE';
+                    officeSlideTexts.forEach((txt)=>{const slide=pptx.addSlide();slide.background={color:'FFFFFF'};slide.addText(txt,{x:0.65,y:0.55,w:12.0,h:6.2,fontFace:'Arial',fontSize:24,color:'172033',breakLine:false,fit:'shrink'});});
+                    const out=await pptx.write({outputType:'blob'}); blob=out instanceof Blob?out:new Blob([out],{type:'application/vnd.openxmlformats-officedocument.presentationml.presentation'}); mime='application/vnd.openxmlformats-officedocument.presentationml.presentation';
+                }
+                downloadFile(blob,base+'.'+ext); document.getElementById('office-status').textContent='Export complete: '+base+'.'+ext;
+            } catch(err) { console.error(err); document.getElementById('office-status').textContent=err.message||'Export failed.'; alert(err.message||'Export failed.'); }
+        }
+
+        async function convertImageFile(file, output, base) {
+            const sourceUrl = URL.createObjectURL(file);
+            try {
+                const image = await new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = () => reject(new Error('This image format cannot be decoded by your browser. Try PNG, JPG or WebP.'));
+                    img.src = sourceUrl;
+                });
+                const canvas = document.createElement('canvas');
+                canvas.width = image.naturalWidth || image.width;
+                canvas.height = image.naturalHeight || image.height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) throw new Error('Could not create image conversion canvas.');
+                if (output === 'jpg') {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                ctx.drawImage(image, 0, 0);
+                if (output === 'pdf') {
+                    const { jsPDF } = window.jspdf;
+                    const landscape = canvas.width > canvas.height;
+                    const doc = new jsPDF({ orientation: landscape ? 'landscape' : 'portrait', unit: 'px', format: [canvas.width, canvas.height], compress: true });
+                    const data = canvas.toDataURL('image/jpeg', 0.94);
+                    doc.addImage(data, 'JPEG', 0, 0, canvas.width, canvas.height);
+                    return { blob: doc.output('blob'), filename: `${base}.pdf` };
+                }
+                const mime = output === 'jpg' ? 'image/jpeg' : `image/${output}`;
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, mime, output === 'webp' || output === 'jpg' ? 0.94 : undefined));
+                if (!blob) throw new Error('The browser could not encode this image format.');
+                return { blob, filename: `${base}.${output}` };
+            } finally {
+                URL.revokeObjectURL(sourceUrl);
+            }
         }
 
         async function processDocConversion() {
@@ -754,115 +1246,116 @@
             const progressBar = document.getElementById('doc-progress-bar');
             const progressStatus = document.getElementById('doc-progress-status');
             const progressPercent = document.getElementById('doc-progress-percent');
-
+            const output = document.getElementById('doc-output-format').value;
             btnConvert.setAttribute('disabled', 'true');
+            btnDownload.classList.add('hidden');
             progressContainer.classList.remove('hidden');
-            progressBar.style.width = '25%';
-            progressPercent.innerText = '25%';
-            progressStatus.innerText = 'Extracting data...';
-
+            progressBar.style.width = '10%'; progressPercent.innerText = '10%';
+            progressStatus.innerText = 'Reading source document...';
             try {
-                if (currentDocMode === 'pdf-to-docx') {
-                    if (!loadedDocFile) return;
-                    const arrayBuffer = await loadedDocFile.arrayBuffer();
-                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                    let textResult = '';
-                    
-                    for (let i = 1; i <= pdf.numPages; i++) {
-                        const page = await pdf.getPage(i);
-                        const content = await page.getTextContent();
-                        textResult += content.items.map(item => item.str).join(' ') + '\n\n';
-                    }
-
-                    progressBar.style.width = '80%';
-                    progressPercent.innerText = '80%';
-
-                    const htmlContent = `<html><body><pre style="font-family:sans-serif;">${textResult}</pre></body></html>`;
-                    convertedBlob = new Blob(['\ufeff' + htmlContent], { type: 'application/msword' });
-                    convertedFileName = loadedDocFile.name.replace(/\.[^/.]+$/, "") + ".docx";
-
-                } else if (currentDocMode === 'docx-to-pdf') {
-                    if (!loadedDocFile) return;
-                    const arrayBuffer = await loadedDocFile.arrayBuffer();
-                    const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
-                    const textToRender = result.value || "Document parsing empty";
-
-                    const { jsPDF } = window.jspdf;
-                    const orientation = document.getElementById('pdf-orientation').value;
-                    const format = document.getElementById('pdf-format').value;
-                    const doc = new jsPDF({ orientation, format });
-
-                    const lines = doc.splitTextToSize(textToRender, 180);
-                    doc.text(lines, 10, 10);
-
-                    convertedBlob = doc.output('blob');
-                    convertedFileName = loadedDocFile.name.replace(/\.[^/.]+$/, "") + ".pdf";
-
-                } else if (currentDocMode === 'txt-to-pdf') {
-                    const { jsPDF } = window.jspdf;
-                    const orientation = document.getElementById('pdf-orientation').value;
-                    const format = document.getElementById('pdf-format').value;
-                    const doc = new jsPDF({ orientation, format });
-
-                    let textToRender = document.getElementById('txt-direct-input').value;
-                    if (loadedDocFile && !textToRender) {
-                        textToRender = await loadedDocFile.text();
-                    }
-                    if (!textToRender) textToRender = "OmniStudio Converted Content";
-
-                    const lines = doc.splitTextToSize(textToRender, 180);
-                    doc.text(lines, 10, 10);
-
-                    convertedBlob = doc.output('blob');
-                    convertedFileName = (loadedDocFile ? loadedDocFile.name.replace(/\.[^/.]+$/, "") : "document") + ".pdf";
-
-                } else if (currentDocMode === 'img-to-pdf') {
-                    if (!loadedDocFile) return;
-                    const { jsPDF } = window.jspdf;
-                    const doc = new jsPDF();
-                    const imgUrl = URL.createObjectURL(loadedDocFile);
-                    const img = new Image();
-                    img.src = imgUrl;
-
-                    await new Promise((res) => { img.onload = res; });
-
-                    const w = doc.internal.pageSize.getWidth() - 20;
-                    const h = (img.height * w) / img.width;
-
-                    doc.addImage(img, 'JPEG', 10, 10, w, h);
-                    convertedBlob = doc.output('blob');
-                    convertedFileName = loadedDocFile.name.replace(/\.[^/.]+$/, "") + ".pdf";
+                if (!loadedDocFile) throw new Error('Please select a source document first.');
+                if (!window.JSZip) throw new Error('Document engine did not load. Please refresh while connected to the internet.');
+                const sourceExt = (loadedDocFile.name.split('.').pop() || '').toLowerCase();
+                const sourceCategory = getDocCategory(sourceExt);
+                if (sourceCategory === 'image') {
+                    const base = loadedDocFile.name.replace(/\\.[^/.]+$/, '') || 'image';
+                    progressStatus.innerText = 'Converting image...';
+                    progressBar.style.width = '45%'; progressPercent.innerText = '45%';
+                    const result = await convertImageFile(loadedDocFile, output, base);
+                    convertedBlob = result.blob;
+                    convertedFileName = result.filename;
+                    progressBar.style.width = '100%'; progressPercent.innerText = '100%';
+                    progressStatus.innerText = 'Image conversion complete — ready to download.';
+                    btnDownload.classList.remove('hidden');
+                    document.getElementById('doc-download-label').innerText = `DOWNLOAD ${convertedFileName.toUpperCase()}`;
+                    btnDownload.onclick = (e) => { triggerPartyPopper(e); downloadFile(convertedBlob, convertedFileName); };
+                    return;
                 }
-
-                progressBar.style.width = '100%';
-                progressPercent.innerText = '100%';
-                progressStatus.innerText = 'Conversion Complete!';
-
+                // Empty files are valid conversion inputs: create an empty output file instead of stopping.
+                let content = loadedDocFile.size === 0 ? '' : await extractDocumentText(loadedDocFile);
+                if (!content.trim()) {
+                    progressStatus.innerText = 'Source is empty — creating an empty output file...';
+                }
+                progressBar.style.width = '45%'; progressPercent.innerText = '45%';
+                progressStatus.innerText = `Creating ${output.toUpperCase()} file...`;
+                const base = loadedDocFile.name.replace(/\.[^/.]+$/, '') || 'document';
+                let ext = output, mime = 'application/octet-stream';
+                const html = `<!doctype html><html><head><meta charset="utf-8"><title>${xmlEscape(base)}</title></head><body><pre style="white-space:pre-wrap;font-family:Arial,sans-serif">${xmlEscape(content)}</pre></body></html>`;
+                if (output === 'docx' || output === 'word') {
+                    convertedBlob = await createDocx(content); ext = 'docx'; mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                } else if (output === 'doc') {
+                    convertedBlob = new Blob([html], { type: 'application/msword' }); mime = 'application/msword';
+                } else if (output === 'ppt') {
+                    const slides = content.split(/\n\s*\n/).filter(Boolean);
+                    const pptHtml = `<!doctype html><html><head><meta charset="utf-8"><title>${xmlEscape(base)}</title><style>body{font-family:Arial}section{page-break-after:always;width:10in;height:5.6in;padding:.5in;box-sizing:border-box}h1{font-size:28pt}p{font-size:20pt;white-space:pre-wrap}</style></head><body>${slides.map((part,i)=>`<section><h1>Slide ${i+1}</h1><p>${xmlEscape(part)}</p></section>`).join('')}</body></html>`;
+                    convertedBlob = new Blob([pptHtml], { type: 'application/vnd.ms-powerpoint' }); mime = 'application/vnd.ms-powerpoint';
+                } else if (output === 'html') {
+                    convertedBlob = new Blob([html], { type: 'text/html;charset=utf-8' }); mime = 'text/html';
+                } else if (output === 'txt' || output === 'text') {
+                    convertedBlob = new Blob([content], { type: 'text/plain;charset=utf-8' }); ext = 'txt'; mime = 'text/plain';
+                } else if (output === 'rtf') {
+                    const rtf = '{\\rtf1\\ansi\\deff0 ' + content.replace(/\\/g, '\\\\').replace(/[{}]/g, '\\$&').replace(/\r?\n/g, '\\par\n') + '}';
+                    convertedBlob = new Blob([rtf], { type: 'application/rtf' }); mime = 'application/rtf';
+                } else if (output === 'pdf') {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF({ orientation: document.getElementById('pdf-orientation').value, format: document.getElementById('pdf-format').value });
+                    const lines = doc.splitTextToSize(content, 185); let y = 12;
+                    for (const line of lines) { if (y > 280) { doc.addPage(); y = 12; } doc.text(line, 10, y); y += 6; }
+                    convertedBlob = doc.output('blob'); mime = 'application/pdf';
+                } else if (output === 'odt') {
+                    convertedBlob = await createOdt(content); mime = 'application/vnd.oasis.opendocument.text';
+                } else if (output === 'ps') {
+                    const safe = content.replace(/([\\()])/g, '\\$1').replace(/\r?\n/g, ') show\n(');
+                    convertedBlob = new Blob([`%!PS-Adobe-3.0\n/Helvetica findfont 10 scalefont setfont\n50 800 moveto\n(${safe}) show\nshowpage\n`], { type: 'application/postscript' }); mime = 'application/postscript';
+                } else if (['xlsx','xls','excel'].includes(output)) {
+                    if (!window.XLSX) throw new Error('Excel engine could not load. Check your internet connection.');
+                    const rows = content.split(/\r?\n/).map(line => [line]);
+                    const wb = XLSX.utils.book_new(); const ws = XLSX.utils.aoa_to_sheet(rows);
+                    XLSX.utils.book_append_sheet(wb, ws, 'Converted');
+                    const bookType = output === 'xls' ? 'biff8' : 'xlsx';
+                    const bytes = XLSX.write(wb, { bookType, type: 'array' });
+                    convertedBlob = new Blob([bytes], { type: output === 'xls' ? 'application/vnd.ms-excel' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                    ext = output === 'excel' ? 'xlsx' : output; mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                } else if (output === 'pptx') {
+                    convertedBlob = await createPptx(content); mime = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+                } else {
+                    throw new Error('This output format is not supported.');
+                }
+                convertedFileName = `${base}.${ext}`;
+                progressBar.style.width = '100%'; progressPercent.innerText = '100%';
+                progressStatus.innerText = 'Conversion complete — ready to download.';
                 btnDownload.classList.remove('hidden');
                 document.getElementById('doc-download-label').innerText = `DOWNLOAD ${convertedFileName.toUpperCase()}`;
-                btnDownload.onclick = (e) => {
-                    triggerPartyPopper(e);
-                    downloadFile(convertedBlob, convertedFileName);
-                };
-
+                btnDownload.onclick = (e) => { triggerPartyPopper(e); downloadFile(convertedBlob, convertedFileName); };
             } catch (err) {
                 console.error(err);
-                progressStatus.innerText = 'Failed to process document.';
-            } finally {
-                btnConvert.removeAttribute('disabled');
-            }
+                progressStatus.innerText = err.message || 'Failed to process document.';
+                progressBar.style.width = '100%'; progressPercent.innerText = 'ERROR';
+            } finally { btnConvert.removeAttribute('disabled'); }
+        }
+
+        function scrollCropTo(targetId) {
+            const target = document.getElementById(targetId);
+            if (!target) return;
+            window.setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' }), 90);
         }
 
         function handleCropImageSelect(file) {
-            if (!file || !file.type.startsWith('image/')) return;
+            if (!file) return;
+            const imageExtensions = /\.(png|jpe?g|webp|gif|bmp|tiff?|avif|heic|heif|svg)$/i;
+            if (!(file.type && file.type.startsWith('image/')) && !imageExtensions.test(file.name || '')) {
+                alert('Please select a supported image file (PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC or SVG).');
+                return;
+            }
             const previewUrl = URL.createObjectURL(file);
             const thumb = document.getElementById('crop-selected-thumb');
-            const preview = document.getElementById('crop-selected-preview');
             if (thumb.dataset.objectUrl) URL.revokeObjectURL(thumb.dataset.objectUrl);
             thumb.dataset.objectUrl = previewUrl;
             thumb.src = previewUrl;
-            document.getElementById('crop-selected-name').textContent = file.name;
-            preview.classList.remove('hidden');
+            const selectedName = document.getElementById('crop-selected-name');
+            selectedName.textContent = file.name;
+            selectedName.classList.remove('hidden');
+            document.getElementById('crop-browse-label').textContent = 'CHANGE IMAGE';
             const reader = new FileReader();
             reader.onload = (e) => {
                 cropSourceImg = new Image();
@@ -874,31 +1367,42 @@
                     panOffsetX = 0;
                     panOffsetY = 0;
                     requestCanvasUpdate();
+                    // After import, bring the shape choices into view automatically.
+                    scrollCropTo('crop-shape-picker');
+                };
+                cropSourceImg.onerror = () => {
+                    alert('This image format is not supported by your browser preview. Try PNG, JPG or WEBP.');
                 };
                 cropSourceImg.src = e.target.result;
             };
+            reader.onerror = () => alert('The selected image could not be read. Please try another file.');
             reader.readAsDataURL(file);
         }
 
         function setCropShape(shape) {
             currentCropShape = shape;
             document.querySelectorAll('.shape-btn').forEach(btn => {
-                btn.classList.remove('border-neon-cyan', 'bg-cyan-950/30');
+                // Clear every active-state class so only the currently selected shape is blue.
+                btn.classList.remove('active', 'border-neon-cyan', 'bg-cyan-950/30', 'border-blue-400', 'bg-blue-600/40', 'bg-blue-600/35', 'text-white', 'ring-2', 'ring-blue-400/40', 'ring-blue-400/35', 'shadow-lg', 'shadow-blue-500/10');
+                btn.classList.add('border-white/10', 'bg-white/[0.035]', 'text-slate-300');
                 const icon = btn.querySelector('i');
-                if (icon) icon.classList.replace('text-neon-cyan', 'text-slate-300');
+                if (icon) { icon.classList.remove('text-neon-cyan', 'text-white'); icon.classList.add('text-slate-300'); }
             });
             const activeBtn = document.querySelector(`[data-shape="${shape}"]`);
             if (activeBtn) {
-                activeBtn.classList.add('border-neon-cyan', 'bg-cyan-950/30');
+                activeBtn.classList.remove('border-white/10', 'bg-white/[0.035]', 'text-slate-300');
+                activeBtn.classList.add('active', 'border-blue-400', 'bg-blue-600/35', 'text-white', 'ring-2', 'ring-blue-400/35', 'shadow-lg', 'shadow-blue-500/10');
                 const icon = activeBtn.querySelector('i');
-                if (icon) icon.classList.replace('text-slate-300', 'text-neon-cyan');
+                if (icon) { icon.classList.remove('text-slate-300'); icon.classList.add('text-white'); }
             }
-            
+
             const radiusGroup = document.getElementById('corner-radius-group');
             if (shape === 'rounded') radiusGroup.classList.remove('hidden');
             else radiusGroup.classList.add('hidden');
 
             requestCanvasUpdate();
+            // Return to the live canvas; desktop keeps the sliders alongside it.
+            if (cropSourceImg && cropSourceImg.src) scrollCropTo('crop-preview-panel');
         }
 
         function setupCanvasPanEvents() {
@@ -951,8 +1455,8 @@
             const radius = parseFloat(document.getElementById('slider-radius').value);
             const brightness = parseFloat(document.getElementById('slider-brightness').value);
             const contrast = parseFloat(document.getElementById('slider-contrast').value);
-            const clarity = parseFloat(document.getElementById('slider-clarity').value);
-            const sharpen = parseFloat(document.getElementById('slider-sharpen').value);
+            const clarity = 0;
+            const sharpen = 0;
             const aspectRatio = document.getElementById('crop-aspect-ratio').value;
 
             document.getElementById('val-zoom').innerText = `${Math.round(zoom * 100)}%`;
@@ -960,8 +1464,8 @@
             document.getElementById('val-radius').innerText = `${radius}px`;
             document.getElementById('val-brightness').innerText = `${brightness}%`;
             document.getElementById('val-contrast').innerText = `${contrast}%`;
-            document.getElementById('val-clarity').innerText = `${Math.round(clarity)}`;
-            document.getElementById('val-sharpen').innerText = `${Math.round(sharpen)}`;
+            
+            
 
             let w = cropSourceImg.width;
             let h = cropSourceImg.height;
@@ -1443,41 +1947,22 @@
         window.addEventListener('DOMContentLoaded', () => {
             const input = document.getElementById('ai-file-input');
             const zone = document.getElementById('ai-dropzone');
-            zone.addEventListener('click', () => input.click());
-            const browseBtn = document.getElementById('ai-browse-btn');
-            const pasteBtn = document.getElementById('ai-paste-btn');
-            browseBtn.addEventListener('click', () => input.click());
-            pasteBtn.addEventListener('click', async () => {
-                const hint = document.getElementById('ai-paste-hint');
-                try {
-                    if (!navigator.clipboard || !navigator.clipboard.read) throw new Error('Clipboard image access is unavailable.');
-                    const items = await navigator.clipboard.read();
-                    for (const item of items) {
-                        const imageType = item.types.find(type => type.startsWith('image/'));
-                        if (!imageType) continue;
-                        const blob = await item.getType(imageType);
-                        const ext = imageType.split('/')[1].replace('jpeg', 'jpg').replace('svg+xml', 'svg');
-                        const file = new File([blob], 'pasted-image.' + ext, { type: imageType, lastModified: Date.now() });
-                        selectAIDetectorFile(file);
-                        hint.textContent = 'Image pasted from clipboard successfully.';
-                        hint.classList.remove('text-slate-500');
-                        hint.classList.add('text-emerald-400');
-                        return;
-                    }
-                    hint.textContent = 'Clipboard mein image nahi mili. Image copy karke Ctrl + V press karein.';
-                } catch (err) {
-                    hint.textContent = 'Clipboard button blocked by browser? Image copy karein aur Ctrl + V press karein.';
-                }
+            if (!input || !zone) return;
+            zone.addEventListener('click', e => {
+                if (e.target === input || e.target.closest('button')) return;
+                input.value = '';
+                input.click();
             });
             input.addEventListener('change', e => {
-                if (e.target.files && e.target.files[0]) selectAIDetectorFile(e.target.files[0]);
+                const file = e.target.files && e.target.files[0];
+                if (file) selectAIDetectorFile(file);
             });
             zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('border-neon-cyan'); });
             zone.addEventListener('dragleave', () => zone.classList.remove('border-neon-cyan'));
             zone.addEventListener('drop', e => {
-                e.preventDefault();
-                zone.classList.remove('border-neon-cyan');
-                if (e.dataTransfer.files && e.dataTransfer.files[0]) selectAIDetectorFile(e.dataTransfer.files[0]);
+                e.preventDefault(); zone.classList.remove('border-neon-cyan');
+                const file = e.dataTransfer.files && e.dataTransfer.files[0];
+                if (file) selectAIDetectorFile(file);
             });
         });
 
@@ -1513,13 +1998,14 @@
             if (aiThumb.dataset.objectUrl) URL.revokeObjectURL(aiThumb.dataset.objectUrl);
             const aiObjectUrl = URL.createObjectURL(file);
             aiThumb.dataset.objectUrl = aiObjectUrl;
+            aiThumb.onload = () => { aiThumb.classList.remove('hidden'); };
+            aiThumb.onerror = () => { document.getElementById('ai-summary').textContent = 'Browser cannot preview this image format. Try JPG or PNG.'; document.getElementById('btn-analyze-ai').disabled = true; };
             aiThumb.src = aiObjectUrl;
-            document.getElementById('ai-selected-name').textContent = file.name;
             aiPreview.classList.remove('hidden');
+            aiPreview.classList.add('flex');
+            document.getElementById('ai-upload-prompt').classList.add('hidden');
             document.getElementById('ai-file-name').textContent = file.name;
             document.getElementById('ai-file-size').textContent = '(' + formatBytes(file.size) + ')';
-            document.getElementById('ai-file-pill').classList.remove('hidden');
-            document.getElementById('ai-file-pill').classList.add('flex');
             document.getElementById('btn-analyze-ai').disabled = false;
             document.getElementById('ai-verdict').textContent = 'READY TO ANALYZE';
             document.getElementById('ai-summary').textContent = 'Image selected. Click Analyze Image to inspect metadata and signatures.';
@@ -1529,6 +2015,8 @@
             if (details) details.classList.add('hidden');
             document.getElementById('ai-progress-wrap').classList.add('hidden');
         }
+
+        function setAIDetectorFile(file) { selectAIDetectorFile(file); }
 
         function aiReadAscii(bytes, start, length) {
             let out = '';
@@ -1695,7 +2183,10 @@
             return { meta, flags, generatorHits:trustedGeneratorHits, bytes:bytes.length, type:file.type || 'Unknown' };
         }
 
-        function closeAIResultModal() { document.getElementById('ai-result-modal').classList.add('hidden'); }
+        function closeAIResultModal() {
+            document.getElementById('ai-result-modal').classList.add('hidden');
+            requestAnimationFrame(() => setTimeout(() => smoothScrollToElement('ai-dropzone', 18), 180));
+        }
 
         async function aiYield() { return new Promise(resolve => setTimeout(resolve, 180)); }
 
@@ -1833,6 +2324,7 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>ANALYZING...';
             wrap.classList.remove('hidden');
+            requestAnimationFrame(() => setTimeout(() => smoothScrollToElement('ai-forensic-report', 18), 120));
             title.textContent = 'Preparing image';
             document.getElementById('ai-verdict').textContent = 'ANALYSIS IN PROGRESS';
             document.getElementById('ai-summary').textContent = 'Processing your image locally. Please wait.';
@@ -1991,16 +2483,145 @@
         }
 
         function downloadFile(blob, filename) {
+            if (!(blob instanceof Blob)) { console.error('Download blocked: output is not a Blob.'); alert('Download failed: file was not generated correctly.'); return false; }
+            triggerPartyPopper();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
+            a.href = url; a.download = filename || 'download'; a.style.display = 'none';
             document.body.appendChild(a);
             a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            // Do not revoke immediately: Chrome/Edge may not have started the download yet.
+            window.setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 30000);
+            return true;
         }
-    </script>
+    
+        let cvFormPhotoData = '';
+        function cvLoadFormPhoto(event){
+            const file=event.target.files&&event.target.files[0]; if(!file)return;
+            if(!file.type.startsWith('image/')){alert('Please choose an image file.');event.target.value='';return;}
+            if(file.size>8*1024*1024){alert('Please choose an image smaller than 8 MB.');event.target.value='';return;}
+            const reader=new FileReader(); reader.onload=()=>{cvFormPhotoData=reader.result;const preview=document.getElementById('cv-form-photo-preview');preview.src=cvFormPhotoData;preview.classList.remove('hidden');}; reader.readAsDataURL(file);
+        }
+        function cvEscape(value){return String(value||'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
+        function cvLines(value){return cvEscape(value).replace(/\r?\n/g,'<br>').replace(/,\s*/g,' · ');}
+        function buildSimpleCVHTML(data){
+            const photo=data.withPhoto&&data.photo?`<img src="${data.photo}" style="width:116px;height:116px;object-fit:cover;border-radius:${data.professional?'50%':'12px'};border:4px solid ${data.accent};">`:'';
+            const heading=data.professional?'letter-spacing:2px;text-transform:uppercase;':'letter-spacing:.2px;';
+            const header=data.professional
+              ? `<header style="background:${data.accent};color:#fff;padding:34px 38px;display:flex;align-items:center;justify-content:space-between;gap:24px"><div><div style="font-size:12px;letter-spacing:3px;opacity:.8;margin-bottom:10px">CURRICULUM VITAE</div><h1 style="font-size:34px;line-height:1.12;margin:0;font-weight:800">${cvEscape(data.name)}</h1><div style="font-size:12px;margin-top:10px;opacity:.85">PROFESSIONAL PROFILE</div></div>${photo}</header>`
+              : `<header style="padding:38px 42px 24px;border-bottom:3px solid ${data.accent};display:flex;align-items:center;justify-content:space-between;gap:20px"><div><h1 style="font-size:34px;line-height:1.12;margin:0;color:#142238;font-weight:800">${cvEscape(data.name)}</h1><div style="font-size:11px;letter-spacing:2px;color:${data.accent};margin-top:10px">CURRICULUM VITAE</div></div>${photo}</header>`;
+            const section=(title,body)=>`<section style="margin:0 0 24px;break-inside:avoid"><h2 style="font-size:14px;color:${data.accent};${heading}font-weight:800;border-bottom:1px solid #dbe3ec;padding-bottom:8px;margin:0 0 11px">${title}</h2><div style="font-size:12px;line-height:1.75;color:#334155;overflow-wrap:anywhere">${body||'<span style="color:#94a3b8">Not provided</span>'}</div></section>`;
+            const body=`${section('SKILLS',cvLines(data.skills))}${section('EDUCATION',cvLines(data.education))}${section('EXPERIENCE',cvLines(data.experience))}`;
+            const content=data.professional?`<div style="padding:30px 42px 42px">${body}</div>`:`<div style="padding:30px 42px 42px">${body}</div>`;
+            return `<div style="width:794px;min-height:1123px;background:#fff;color:#142238;font-family:Arial,Helvetica,sans-serif;box-sizing:border-box">${header}${content}<footer style="margin:0 42px 28px;border-top:1px solid #e2e8f0;padding-top:10px;color:#94a3b8;font-size:9px;letter-spacing:1px">GENERATED WITH MEDIAMORPH CV MAKER</footer></div>`;
+        }
+        async function generateSimpleCV(){
+            const name=document.getElementById('cv-input-name').value.trim();
+            const skills=document.getElementById('cv-input-skills').value.trim();
+            const education=document.getElementById('cv-input-education').value.trim();
+            const experience=document.getElementById('cv-input-experience').value.trim();
+            const style=document.getElementById('cv-style-choice').value;
+            const withPhoto=style.endsWith('-photo');
+            if(!name){alert('Please enter your full name first.');document.getElementById('cv-input-name').focus();return;}
+            if(withPhoto&&!cvFormPhotoData){alert('Please browse and select your picture for this style.');document.getElementById('cv-photo-file').click();return;}
+            const btn=document.getElementById('cv-generate-btn'),status=document.getElementById('cv-generate-status');
+            btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-2"></i>GENERATING PDF…';status.textContent='Preparing your CV locally in this browser…';
+            try{
+                if(!window.html2canvas||!window.jspdf)throw new Error('PDF libraries could not load. Please check your internet connection and retry.');
+                const professional=style.startsWith('professional');
+                const stage=document.getElementById('cv-render-stage');
+                stage.innerHTML=buildSimpleCVHTML({name,skills,education,experience,withPhoto,photo:cvFormPhotoData,professional,accent:professional?'#123b63':'#087e8b'});
+                const node=stage.firstElementChild;
+                if(withPhoto){const im=node.querySelector('img');if(im&&!im.complete)await new Promise((resolve,reject)=>{im.onload=resolve;im.onerror=reject;});}
+                const canvas=await html2canvas(node,{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false});
+                const {jsPDF}=window.jspdf;const pdf=new jsPDF('p','pt','a4');
+                const pageW=pdf.internal.pageSize.getWidth(),pageH=pdf.internal.pageSize.getHeight();
+                const pxPerPage=canvas.width*pageH/pageW;let y=0,page=0;
+                while(y<canvas.height){const sliceH=Math.min(pxPerPage,canvas.height-y);const slice=document.createElement('canvas');slice.width=canvas.width;slice.height=Math.ceil(sliceH);slice.getContext('2d').drawImage(canvas,0,y,canvas.width,sliceH,0,0,canvas.width,sliceH);if(page>0)pdf.addPage();pdf.addImage(slice.toDataURL('image/jpeg',0.96),'JPEG',0,0,pageW,pageH*(sliceH/pxPerPage));y+=sliceH;page++;}
+                const safeName=name.replace(/[^a-z0-9_-]+/gi,'_').replace(/^_+|_+$/g,'')||'My';downloadFile(pdf.output('blob'),safeName+'_CV.pdf');status.textContent='Your CV PDF has been generated and download started.';
+            }catch(err){console.error(err);status.textContent='Could not generate PDF. '+(err.message||'Please try again.');alert(status.textContent);}
+            finally{btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>GENERATE & DOWNLOAD PDF';}
+        }
+
+        // MediaMorph Office local productivity editor
+        let ooModeNow='word', ooFileName='Untitled document', ooSheets=[{name:'Sheet1',data:Array.from({length:30},()=>Array(12).fill(''))}], ooSheetIndex=0, ooSlides=[{html:'<h1>Welcome to MediaMorph Office</h1><p>Click to edit this presentation</p>',bg:'#ffffff'}], ooSlideIndex=0, ooSelectedCell=null;
+        function ooSetStatus(t){const e=document.getElementById('oo-save-state');if(e)e.textContent=t;}
+        function ooName(n){ooFileName=n||'Untitled';document.getElementById('oo-file-name').textContent=ooFileName;}
+        function ooMode(m){ooModeNow=m;document.getElementById('oo-word-tools').classList.toggle('hidden',m!=='word');document.getElementById('oo-excel-tools').classList.toggle('hidden',m!=='excel');document.getElementById('oo-word-work').classList.toggle('hidden',m!=='word');document.getElementById('oo-excel-work').classList.toggle('hidden',m!=='excel');document.getElementById('oo-status-left').textContent=m==='word'?'Page '+document.querySelectorAll('.oo-paper').length+' · A4 · 100%':'Sheet '+(ooSheetIndex+1)+' · Grid view';}
+        function ooShowHome(){document.getElementById('oo-home').classList.remove('hidden');document.getElementById('oo-editor').classList.add('hidden');document.getElementById('oo-create-picker').classList.add('hidden');}
+        function ooShowCreate(){const picker=document.getElementById('oo-create-picker');picker.classList.remove('hidden');requestAnimationFrame(()=>picker.scrollIntoView({behavior:'smooth',block:'center'}));}
+        function ooOpenEditor(){document.getElementById('oo-home').classList.add('hidden');document.getElementById('oo-editor').classList.remove('hidden');document.getElementById('oo-create-picker').classList.add('hidden');}
+        function ooCreateType(m){if(m!=='word'&&m!=='excel')return;ooNew(m);ooOpenEditor();}
+        function ooNew(m='word'){ooName(m==='excel'?'Untitled workbook.xlsx':'Untitled document.docx');if(m==='word'){document.getElementById('oo-pages').innerHTML='<article class="oo-paper" contenteditable="true" spellcheck="true"><p><br></p></article>';ooMode('word');}else{ooSheets=[{name:'Sheet1',data:Array.from({length:30},()=>Array(12).fill(''))}];ooSheetIndex=0;ooMode('excel');ooRenderSheets();}ooSetStatus('New file');}
+                function ooCmd(cmd,val=null){document.execCommand(cmd,false,val);ooSetStatus('Editing…');}
+        function ooPages(){return [...document.querySelectorAll('#oo-pages .oo-paper')];}
+        function ooPageBreak(){const pages=document.getElementById('oo-pages');const page=document.createElement('article');page.className='oo-paper';page.contentEditable='true';page.spellcheck=true;page.innerHTML='<p><br></p>';pages.appendChild(page);page.focus();ooMode('word');}
+        function ooInsertTable(){const r=Math.max(1,Math.min(12,parseInt(prompt('Rows?', '3'))||3)),c=Math.max(1,Math.min(10,parseInt(prompt('Columns?', '3'))||3));let h='<table><tbody>';for(let i=0;i<r;i++){h+='<tr>';for(let j=0;j<c;j++)h+='<td>&nbsp;</td>';h+='</tr>';}h+='</tbody></table><p><br></p>';document.execCommand('insertHTML',false,h);}
+        function ooInsertImage(){const i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=()=>{const f=i.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>document.execCommand('insertImage',false,rd.result);rd.readAsDataURL(f);};i.click();}
+        function ooInsertLink(){const u=prompt('Enter link URL');if(u)document.execCommand('createLink',false,u);}
+        function ooColName(n){let x=n+1,out='';while(x){let r=(x-1)%26;out=String.fromCharCode(65+r)+out;x=Math.floor((x-1)/26);}return out;}
+        function ooRenderSheets(){
+          const tabs=document.getElementById('oo-sheet-tabs');tabs.innerHTML='';
+          ooSheets.forEach((sh,i)=>{
+            const b=document.createElement('button');b.type='button';b.className='oo-sheet-tab px-3 py-2 text-xs rounded-t-lg '+(i===ooSheetIndex?'active bg-white text-slate-900 font-bold':'bg-slate-700 text-slate-200');
+            const label=document.createElement('span');label.textContent=sh.name;
+            const close=document.createElement('span');close.className='oo-sheet-close';close.innerHTML='&times;';close.title='Delete '+sh.name;close.setAttribute('aria-label','Delete '+sh.name);
+            close.onclick=e=>{e.stopPropagation();ooSheetIndex=i;ooDeleteSheet();};
+            b.append(label,close);b.onclick=()=>{if(i===ooSheetIndex)return;ooSheetIndex=i;ooSelectedCell=null;ooRenderSheets();};
+            b.ondblclick=e=>{if(e.target===close)return;e.preventDefault();ooSheetIndex=i;ooRenameSheet();};
+            b.oncontextmenu=e=>{e.preventDefault();ooSheetIndex=i;const action=prompt('Sheet options: R = Rename, D = Duplicate, X = Delete','R');if(action?.toUpperCase()==='R')ooRenameSheet();else if(action?.toUpperCase()==='D')ooDuplicateSheet();else if(action?.toUpperCase()==='X')ooDeleteSheet();};
+            tabs.appendChild(b);
+          });
+          const d=ooSheets[ooSheetIndex].data;let h='<thead><tr><th class="sticky left-0 z-20"> </th>'+d[0].map((_,i)=>'<th>'+ooColName(i)+'</th>').join('')+'</tr></thead><tbody>';
+          d.forEach((row,r)=>{h+='<tr><th class="sticky left-0">'+(r+1)+'</th>'+row.map((v,c)=>`<td contenteditable="true" spellcheck="false" data-r="${r}" data-c="${c}">${ooEsc(v)}</td>`).join('')+'</tr>';});
+          document.getElementById('oo-grid').innerHTML=h+'</tbody>';
+          document.querySelectorAll('#oo-grid td').forEach(td=>{td.onfocus=()=>{ooSelectedCell=td;document.getElementById('oo-formula').value=td.textContent;};td.oninput=()=>{d[+td.dataset.r][+td.dataset.c]=td.textContent;ooSetStatus('Editing…');};td.onkeydown=e=>{let r=+td.dataset.r,c=+td.dataset.c;if(e.key==='Enter'){e.preventDefault();document.querySelector(`#oo-grid td[data-r="${r+1}"][data-c="${c}"]`)?.focus();}else if(e.key==='Tab'){e.preventDefault();document.querySelector(`#oo-grid td[data-r="${r}"][data-c="${c+1}"]`)?.focus();}};});
+          document.getElementById('oo-status-left').textContent=`Sheet ${ooSheetIndex+1} · ${d.length} rows · ${d[0].length} columns`;
+        }
+        function ooAddRow(){const d=ooSheets[ooSheetIndex].data;d.push(Array(d[0].length).fill(''));ooRenderSheets();}
+        function ooAddCol(){ooSheets[ooSheetIndex].data.forEach(r=>r.push(''));ooRenderSheets();}
+        function ooDeleteRow(){if(!ooSelectedCell)return alert('Select a cell in the row first.');const r=+ooSelectedCell.dataset.r;if(ooSheets[ooSheetIndex].data.length<=1)return;ooSheets[ooSheetIndex].data.splice(r,1);ooSelectedCell=null;ooRenderSheets();}
+        function ooDeleteCol(){if(!ooSelectedCell)return alert('Select a cell in the column first.');const c=+ooSelectedCell.dataset.c;if(ooSheets[ooSheetIndex].data[0].length<=1)return;ooSheets[ooSheetIndex].data.forEach(r=>r.splice(c,1));ooSelectedCell=null;ooRenderSheets();}
+        function ooAddSheet(){ooSheets.push({name:'Sheet'+(ooSheets.length+1),data:Array.from({length:30},()=>Array(12).fill(''))});ooSheetIndex=ooSheets.length-1;ooRenderSheets();ooSetStatus('New worksheet added');}
+        function ooRenameSheet(){const sh=ooSheets[ooSheetIndex],n=prompt('Enter worksheet name (max 31 characters)',sh.name);if(n&&n.trim()){sh.name=n.trim().replace(/[\\/?*\[\]:]/g,'').slice(0,31)||sh.name;ooRenderSheets();}}
+        function ooDuplicateSheet(){const sh=ooSheets[ooSheetIndex];ooSheets.splice(ooSheetIndex+1,0,{name:(sh.name+' (2)').slice(0,31),data:sh.data.map(r=>r.slice())});ooSheetIndex++;ooRenderSheets();}
+        function ooDeleteSheet(){if(ooSheets.length<=1)return alert('Workbook mein kam az kam aik sheet rehni zaroori hai.');if(!confirm('Delete worksheet "'+ooSheets[ooSheetIndex].name+'"?'))return;ooSheets.splice(ooSheetIndex,1);ooSheetIndex=Math.max(0,ooSheetIndex-1);ooSelectedCell=null;ooRenderSheets();}
+        function ooCellStyle(s){if(!ooSelectedCell)return;if(s==='bold')ooSelectedCell.style.fontWeight=ooSelectedCell.style.fontWeight?'':'bold';if(s==='italic')ooSelectedCell.style.fontStyle=ooSelectedCell.style.fontStyle?'':'italic';if(s==='underline')ooSelectedCell.style.textDecoration=ooSelectedCell.style.textDecoration?'':'underline';}
+        function ooCellFill(v){if(ooSelectedCell)ooSelectedCell.style.background=v;}
+        function ooSetFormula(v){if(!ooSelectedCell)return;const td=ooSelectedCell;td.textContent=v.startsWith('=')?ooEvalFormula(v):v;ooSheets[ooSheetIndex].data[+td.dataset.r][+td.dataset.c]=v;}
+        function ooEvalFormula(f){try{const m=f.match(/^=\s*(SUM|AVERAGE|MIN|MAX)\(([A-Z]+\d+):([A-Z]+\d+)\)$/i);if(!m)return f;const col=x=>x.charCodeAt(0)-65,row=x=>parseInt(x.slice(1))-1;const a=m[2],b=m[3],vals=[];for(let r=row(a);r<=row(b);r++)for(let c=col(a);c<=col(b);c++)vals.push(Number(ooSheets[ooSheetIndex].data[r]?.[c])||0);const sum=vals.reduce((x,y)=>x+y,0);return String(({SUM:sum,AVERAGE:sum/(vals.length||1),MIN:Math.min(...vals),MAX:Math.max(...vals)})[m[1].toUpperCase()]);}catch{return '#ERROR';}}
+        function ooRenderSlides(){const list=document.getElementById('oo-slide-list');list.innerHTML='';ooSlides.forEach((s,i)=>{const b=document.createElement('button');b.className='oo-slide-thumb'+(i===ooSlideIndex?' active':'');b.innerHTML='Slide '+(i+1)+'<div style="font-size:8px;margin-top:5px">'+ooStrip(s.html).slice(0,55)+'</div>';b.onclick=()=>{ooSaveSlide();ooSlideIndex=i;ooRenderSlides();};list.appendChild(b);});const el=document.getElementById('oo-current-slide');el.innerHTML=ooSlides[ooSlideIndex].html;el.style.background=ooSlides[ooSlideIndex].bg;el.oninput=()=>{ooSlides[ooSlideIndex].html=el.innerHTML;ooSetStatus('Editing…');};document.getElementById('oo-slide-count').textContent=`Slide ${ooSlideIndex+1} of ${ooSlides.length}`;document.getElementById('oo-status-left').textContent=`Slide ${ooSlideIndex+1} · 16:9`;}
+        function ooSaveSlide(){const el=document.getElementById('oo-current-slide');if(el)ooSlides[ooSlideIndex].html=el.innerHTML;}function ooAddSlide(){ooSaveSlide();ooSlides.push({html:'<h1>New slide</h1><p>Click to add content</p>',bg:'#ffffff'});ooSlideIndex=ooSlides.length-1;ooRenderSlides();}function ooPrevSlide(){ooSaveSlide();ooSlideIndex=Math.max(0,ooSlideIndex-1);ooRenderSlides();}function ooNextSlide(){ooSaveSlide();ooSlideIndex=Math.min(ooSlides.length-1,ooSlideIndex+1);ooRenderSlides();}function ooSlideLayout(t){document.getElementById('oo-current-slide').innerHTML=t==='title'?'<h1>Presentation title</h1><p>Subtitle</p>':'<h2>Slide heading</h2><ul><li>First point</li><li>Second point</li><li>Third point</li></ul>';ooSaveSlide();ooRenderSlides();}function ooSlideColor(){const c=prompt('Background color (hex)',ooSlides[ooSlideIndex].bg);if(c){ooSlides[ooSlideIndex].bg=c;ooRenderSlides();}}function ooAddSlideText(){document.execCommand('insertHTML',false,'<p style="font-size:24px">New text box</p>');ooSaveSlide();}function ooAddSlideImage(){const i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=()=>{const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{document.execCommand('insertImage',false,r.result);ooSaveSlide();};r.readAsDataURL(f);};i.click();}
+        function ooEsc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}function ooStrip(h){const d=document.createElement('div');d.innerHTML=h;return d.innerText||'';}
+        async function ooDocxToHtml(buffer){
+          const zip=await JSZip.loadAsync(buffer);const docFile=zip.file('word/document.xml');if(!docFile)throw Error('DOCX document.xml not found');
+          const xml=await docFile.async('text'),doc=new DOMParser().parseFromString(xml,'application/xml');
+          const get=(el,ns,name)=>el?.getElementsByTagNameNS(ns,name)?.[0];
+          const val=(el,ns,name)=>get(el,ns,name)?.textContent||'';
+          const esc=ooEsc;let styleMap={};
+          if(zip.file('word/styles.xml')){const sx=await zip.file('word/styles.xml').async('text'),sd=new DOMParser().parseFromString(sx,'application/xml');[...sd.getElementsByTagNameNS('*','style')].forEach(st=>{const id=st.getAttribute('w:styleId')||st.getAttribute('styleId');if(id){const pp=get(st,'*','pPr'),rr=get(st,'*','rPr');styleMap[id]={align:val(pp,'*','jc'),size:val(rr,'*','sz'),bold:!!get(rr,'*','b')};}});}
+          function runHtml(r){const t=[...r.getElementsByTagNameNS('*','t')].map(x=>esc(x.textContent)).join('')+(r.getElementsByTagNameNS('*','tab').length?'&emsp;':'')+(r.getElementsByTagNameNS('*','br').length?'<br>':'');if(!t)return '';const rp=get(r,'*','rPr');let css=[];const sz=val(rp,'*','sz');if(sz)css.push('font-size:'+((+sz)/2)+'pt');const color=val(rp,'*','color');if(color&&color!=='auto')css.push('color:#'+color);const hi=val(rp,'*','highlight');if(hi)css.push('background-color:'+({yellow:'#ffff00',green:'#00ff00',cyan:'#00ffff',magenta:'#ff00ff',blue:'#0000ff',red:'#ff0000',darkBlue:'#00008b',darkCyan:'#008b8b',darkGreen:'#006400',darkMagenta:'#8b008b',darkRed:'#8b0000',darkYellow:'#808000',lightGray:'#d3d3d3',darkGray:'#a9a9a9',black:'#000000',white:'#ffffff'}[hi]||hi));const fonts=get(rp,'*','rFonts');const font=fonts?.getAttribute('w:ascii')||fonts?.getAttribute('ascii');if(font)css.push('font-family:'+JSON.stringify(font));let out=t;if(get(rp,'*','b'))out='<strong>'+out+'</strong>';if(get(rp,'*','i'))out='<em>'+out+'</em>';if(get(rp,'*','u'))out='<u>'+out+'</u>';if(get(rp,'*','strike')||get(rp,'*','d strike'))out='<s>'+out+'</s>';if(css.length)out='<span style="'+css.join(';')+'">'+out+'</span>';return out;}
+          function paragraph(p){const ppr=get(p,'*','pPr'),styleId=val(ppr,'*','pStyle'),st=styleMap[styleId]||{};let tag='p';if(/^Title$/i.test(styleId))tag='h1';else if(/^Subtitle$/i.test(styleId))tag='h2';else if(/Heading1/i.test(styleId))tag='h1';else if(/Heading2/i.test(styleId))tag='h2';else if(/Heading3/i.test(styleId))tag='h3';else if(/Title|heading 1/i.test(styleId))tag='h1';const jc=val(ppr,'*','jc')||st.align;const align=jc==='center'?'center':jc==='right'?'right':jc==='both'?'justify':'left';let content=[...p.childNodes].filter(n=>n.nodeType===1&&(/(^|:)r$/.test(n.nodeName)||n.localName==='hyperlink'||n.localName==='bookmarkStart')).map(n=>n.localName==='hyperlink'?[...n.getElementsByTagNameNS('*','r')].map(runHtml).join(''):[...n.getElementsByTagNameNS('*','r')].length?[...n.getElementsByTagNameNS('*','r')].map(runHtml).join(''):runHtml(n)).join('');if(!content)content='<br>';let list=get(ppr,'*','numPr');if(list){const ilvl=val(list,'*','ilvl');tag='li';return '<li style="text-align:'+align+';margin-left:'+((+ilvl||0)*24)+'px">'+content+'</li>'; }return '<'+tag+' style="text-align:'+align+'">'+content+'</'+tag+'>';}
+          function table(tbl){let out='<table>';for(const tr of [...tbl.getElementsByTagNameNS('*','tr')]){out+='<tr>';for(const tc of [...tr.children].filter(x=>x.localName==='tc')){const ps=[...tc.getElementsByTagNameNS('*','p')].map(paragraph).join('')||'<p></p>';out+='<td>'+ps+'</td>';}out+='</tr>';}return out+'</table>';}
+          const body=get(doc,'*','body');let out='';for(const child of [...(body?.children||[])]){if(child.localName==='p')out+=paragraph(child);else if(child.localName==='tbl')out+=table(child);}return out||'<p></p>';
+        }
+                async function ooImport(ev){const f=ev.target.files?.[0];if(!f)return;const ext=f.name.split('.').pop().toLowerCase();ooName(f.name);ooSetStatus('Importing…');try{if(['xlsx','xls','csv'].includes(ext)){if(!window.XLSX)throw Error('Spreadsheet library did not load');const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellFormula:true});ooSheets=wb.SheetNames.map(n=>{const ws=wb.Sheets[n],ref=ws['!ref']||'A1';const range=XLSX.utils.decode_range(ref);const data=[];for(let R=range.s.r;R<=range.e.r;R++){const row=[];for(let C=range.s.c;C<=range.e.c;C++){const cell=ws[XLSX.utils.encode_cell({r:R,c:C})];row.push(cell?(cell.f?'='+cell.f:(cell.w??cell.v??'')):'');}data.push(row);}return {name:n,data};});ooSheets.forEach(s=>{if(!s.data.length)s.data=[Array(12).fill('')];const cols=Math.max(12,...s.data.map(r=>r.length));s.data=s.data.map(r=>[...r,...Array(Math.max(0,cols-r.length)).fill('')]);});ooSheetIndex=0;ooMode('excel');ooRenderSheets();}
+          else if(ext==='docx'){const html=await ooDocxToHtml(await f.arrayBuffer());document.getElementById('oo-pages').innerHTML='<article class="oo-paper" contenteditable="true" spellcheck="true">'+html+'</article>';ooMode('word');ooOpenEditor();}
+          else if(ext==='pdf'){if(!window.pdfjsLib)throw Error('PDF reader did not load');pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;const pages=[];for(let n=1;n<=pdf.numPages;n++){const pg=await pdf.getPage(n),txt=await pg.getTextContent();pages.push('<article class="oo-paper" contenteditable="true">'+txt.items.map(x=>'<p>'+ooEsc(x.str)+'</p>').join('')+'</article>');}document.getElementById('oo-pages').innerHTML=pages.join('');ooMode('word');}
+          else{let text=await f.text();if(ext==='html'||ext==='htm'){const d=new DOMParser().parseFromString(text,'text/html');text=d.body.innerHTML;}else if(ext==='rtf')text=ooEsc(text.replace(/\\par/g,'\n').replace(/\\[a-z]+-?\d* ?/gi,'').replace(/[{}]/g,''));else text='<p>'+ooEsc(text).replace(/\r?\n/g,'</p><p>')+'</p>';document.getElementById('oo-pages').innerHTML='<article class="oo-paper" contenteditable="true">'+text+'</article>';ooMode('word');}
+          ooOpenEditor();ooSetStatus('Imported');}catch(e){console.error(e);alert('Import failed: '+e.message);}finally{ev.target.value='';}}
+        function ooHtmlToDocxXml(html){const d=document.createElement('div');d.innerHTML=html;const paras=[];function walk(node){if(node.nodeType===3){const t=node.nodeValue;if(t)paras.push(`<w:r><w:t xml:space="preserve">${ooXml(t)}</w:t></w:r>`);return;}if(node.nodeType!==1)return;const tag=node.tagName.toLowerCase();if(tag==='br'){paras.push('<w:r><w:br/></w:r>');return;}if(tag==='img')return;if(['p','div','h1','h2','h3','li','blockquote'].includes(tag)){const before=paras.length;[...node.childNodes].forEach(walk);if(paras.length===before)paras.push('<w:r><w:t></w:t></w:r>');paras.push('PARA');}else [...node.childNodes].forEach(walk);} [...d.childNodes].forEach(walk);let out='',cur='';for(const x of paras){if(x==='PARA'){out+='<w:p>'+cur+'</w:p>';cur='';}else cur+=x;}if(cur)out+='<w:p>'+cur+'</w:p>';return out||'<w:p/>';}
+        function ooXml(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+        async function ooExport(e){if(e)triggerPartyPopper(e);try{ooSetStatus('Preparing export…');let blob,name=ooFileName.replace(/\.[^.]+$/,'')||'MediaMorph Office';if(ooModeNow==='word'){const pages=ooPages();let body='';pages.forEach((p,i)=>{body+=ooHtmlToDocxXml(p.innerHTML);if(i<pages.length-1)body+='<w:p><w:r><w:br w:type="page"/></w:r></w:p>';});const z=new JSZip();z.file('[Content_Types].xml','<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');z.folder('_rels').file('.rels','<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');z.folder('word').file('document.xml',`<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1417" w:right="1247" w:bottom="1417" w:left="1247"/></w:sectPr></w:body></w:document>`);blob=await z.generateAsync({type:'blob'});name+='.docx';}
+          else if(ooModeNow==='excel'){const wb=XLSX.utils.book_new();ooSheets.forEach(s=>XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(s.data),s.name.slice(0,31)));const arr=XLSX.write(wb,{bookType:'xlsx',type:'array'});blob=new Blob([arr],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});name+='.xlsx';}
+          else{throw new Error('Unsupported editor type. MediaMorph Office supports Word and Excel files.');}
+          downloadFile(blob,name);ooSetStatus('Exported');}catch(e){console.error(e);ooSetStatus('Export error');alert('Export failed: '+e.message);}}
+        function ooXmlSafe(t){return ooXml(t);}
+        document.addEventListener('input',e=>{if(e.target.closest('#oo-pages'))ooSetStatus('Editing…');});
+        // Initialize the spreadsheet workspace.
+        ooRenderSheets();
+
+</script>
 
     <div id="ai-result-modal" class="hidden fixed inset-0 z-[9999] items-center justify-center bg-slate-950/90 backdrop-blur-md p-4">
         <div class="relative w-full max-w-md overflow-hidden rounded-3xl border border-cyan-400/20 bg-[#08111f] p-7 text-center shadow-2xl shadow-cyan-950/40">
@@ -2023,5 +2644,39 @@
         @keyframes aiModalFade { from {opacity:0} to {opacity:1} }
         @keyframes aiOrbitPulse { 0%,100% {transform:scale(1);box-shadow:0 0 0 0 rgba(34,211,238,.12)} 50% {transform:scale(1.06);box-shadow:0 0 28px 8px rgba(34,211,238,.12)} }
     </style>
+    <script>
+    // On phones, keep all live adjustment sliders directly under the preview canvas.
+    // This avoids repeated long trips between the preview and the control panel.
+    (function(){
+      const controls=document.getElementById('crop-adjustment-controls');
+      const previewCard=document.getElementById('crop-preview-panel')?.parentElement;
+      const originalParent=controls?.parentElement;
+      const originalNext=controls?.nextElementSibling;
+      if(!controls||!previewCard||!originalParent)return;
+      const moveControlsForViewport=()=>{
+        const mobile=window.matchMedia('(max-width: 767px)').matches;
+        if(mobile){
+          if(controls.parentElement!==previewCard) previewCard.appendChild(controls);
+          controls.classList.add('mobile-preview-controls');
+        }else{
+          if(controls.parentElement!==originalParent){
+            if(originalNext&&originalNext.parentElement===originalParent) originalParent.insertBefore(controls,originalNext);
+            else originalParent.appendChild(controls);
+          }
+          controls.classList.remove('mobile-preview-controls');
+        }
+      };
+      moveControlsForViewport();
+      window.addEventListener('resize',moveControlsForViewport,{passive:true});
+      if(window.matchMedia('(max-width: 767px)').matches){
+        const imageInput=document.getElementById('crop-file-input');
+        imageInput?.addEventListener('change',()=>setTimeout(()=>{
+          if(document.getElementById('shape-crop-canvas')?.classList.contains('hidden')===false){
+            document.getElementById('crop-shape-picker')?.scrollIntoView({behavior:'smooth',block:'start'});
+          }
+        },250));
+      }
+    })();
+    </script>
 </body>
 </html>
