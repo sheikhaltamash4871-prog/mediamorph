@@ -1135,10 +1135,12 @@
 
 
         // ==========================================================
-        // HYBRID IMAGE FORENSICS: ONNX VISION MODEL + METADATA + PIXEL CUES
+        // HYBRID IMAGE FORENSICS: SIEVE ONNX MODEL + METADATA + PIXEL CUES
         // ==========================================================
         let aiDetectorFile = null;
-        const AI_DETECTRA_MODEL_URL = 'https://huggingface.co/TensorFold/detectra-v1/resolve/main/model.onnx';
+        const AI_DETECTRA_MODEL_URL = new URL('./models/w5810_best_fp16.onnx', document.baseURI).href;
+        const AI_SIEVE_SHA256 = '8392faaf0191c339ed76cf68861b1f4fac15da67e8669fa222e3181c59b2d748';
+        const AI_SIEVE_CALIBRATION_BIAS = 0.2;
         let aiDetectraSessionPromise = null;
 
         // Updates the compact model's download/initialization indicator.
@@ -1165,7 +1167,7 @@
         const AI_MODEL_DB_NAME = 'omnistudio-local-assets';
         const AI_MODEL_DB_VERSION = 1;
         const AI_MODEL_STORE = 'models';
-        const AI_MODEL_CACHE_KEY = 'detectra-compact-v1';
+        const AI_MODEL_CACHE_KEY = 'sieve-v0.14.0-w5810-fp16';
 
         function aiOpenModelDB() {
             return new Promise((resolve, reject) => {
@@ -1212,9 +1214,17 @@
             } finally { if (db) db.close(); }
         }
 
-        // Detectra v3: modern-generator + in-the-wild/social-media training.
-        // Preprocess as documented by its model card: shortest edge 440, center crop 384,
-        // RGB [0,1], ImageNet mean/std, NCHW float32. Image bytes never leave this browser.
+        async function aiVerifySieveModel(bytes) {
+            if (!crypto || !crypto.subtle) throw new Error('Secure model verification is unavailable in this browser.');
+            const digest = await crypto.subtle.digest('SHA-256', bytes);
+            const actual = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+            if (actual !== AI_SIEVE_SHA256) throw new Error('Downloaded model checksum did not match the official Sieve release. Please retry.');
+            return true;
+        }
+
+        // Sieve v0.14.0: MIT-licensed local model fine-tuned on modern generators,
+        // including Nano Banana and social-media/JPEG-degraded examples.
+        // Images stay in-browser; model weights are downloaded once and cached locally.
         async function aiGetDetectraSession(onStatus) {
             if (!aiDetectraSessionPromise) {
                 const load = (async () => {
@@ -1288,6 +1298,13 @@
                     }
 
                     if (!modelBytes || modelBytes.byteLength < 1000000) throw new Error('Model download was incomplete or returned an invalid file.');
+                    onStatus && onStatus('Processing Model 82%');
+                    try { await aiVerifySieveModel(modelBytes); } catch (verifyError) {
+                        // Remove a stale/corrupt cached copy so the next attempt can fetch a clean one.
+                        try { const db = await aiOpenModelDB(); await new Promise(resolve => { const tx=db.transaction(AI_MODEL_STORE,'readwrite'); tx.objectStore(AI_MODEL_STORE).delete(AI_MODEL_CACHE_KEY); tx.oncomplete=resolve; tx.onerror=resolve; }); db.close(); } catch (_) {}
+                        throw verifyError;
+                    }
+                    await aiSaveCachedModel(modelBytes);
                     onStatus && onStatus('Processing Model 85%');
                     let session;
                     const providers = (typeof navigator !== 'undefined' && navigator.gpu) ? ['webgpu', 'wasm'] : ['wasm'];
@@ -1312,7 +1329,7 @@
                 })();
                 aiDetectraSessionPromise = Promise.race([
                     load,
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Detectra initialization timed out after 150 seconds.')), 150000))
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Sieve initialization timed out after 150 seconds.')), 150000))
                 ]).catch(err => {
                     aiDetectraSessionPromise = null;
                     throw err;
@@ -1321,7 +1338,39 @@
             return await aiDetectraSessionPromise;
         }
 
-        async function aiRunDetectra(file, onStatus) {
+        // Match Sieve's deterministic Pillow BILINEAR resize rather than browser-dependent Skia scaling.
+        function aiSieveResample(src, dw, dh) {
+            const pass = (data, sw, sh, dsize, horizontal) => {
+                const srcSize = horizontal ? sw : sh, scale = srcSize / dsize;
+                const filterScale = Math.max(scale, 1), support = filterScale;
+                const ow = horizontal ? dsize : sw, oh = horizontal ? sh : dsize;
+                const out = new Float32Array(ow * oh * 4), bounds = [];
+                for (let i = 0; i < dsize; i++) {
+                    const center = (i + 0.5) * scale, lo = Math.max(0, Math.floor(center - support));
+                    const hi = Math.min(srcSize, Math.ceil(center + support)), weights = new Float32Array(hi - lo);
+                    let sum = 0;
+                    for (let k = lo; k < hi; k++) { const t = Math.abs((k + 0.5 - center) / filterScale); const v = t < 1 ? 1 - t : 0; weights[k-lo] = v; sum += v; }
+                    if (sum > 0) for (let k = 0; k < weights.length; k++) weights[k] /= sum;
+                    bounds.push([lo, weights]);
+                }
+                for (let y = 0; y < oh; y++) for (let x = 0; x < ow; x++) {
+                    const [lo, w] = bounds[horizontal ? x : y]; let r=0,g=0,b=0;
+                    for (let k=0;k<w.length;k++) { const j=horizontal ? (y*sw+lo+k)*4 : ((lo+k)*sw+x)*4; r+=data[j]*w[k]; g+=data[j+1]*w[k]; b+=data[j+2]*w[k]; }
+                    const o=(y*ow+x)*4; out[o]=r; out[o+1]=g; out[o+2]=b; out[o+3]=255;
+                }
+                return out;
+            };
+            let d=pass(src.data,src.width,src.height,dw,true); d=pass(d,dw,src.height,dh,false);
+            const data=new Uint8ClampedArray(dw*dh*4); for(let i=0;i<d.length;i++) data[i]=Math.round(d[i]);
+            return {data,width:dw,height:dh};
+        }
+        function aiSieveCrop(src,x0,y0,size) {
+            const out=new Uint8ClampedArray(size*size*4);
+            for(let y=0;y<size;y++){const start=((y0+y)*src.width+x0)*4;out.set(src.data.subarray(start,start+size*4),y*size*4);}
+            return out;
+        }
+
+        async function aiRunDetectra(file, onStatus, cropPosition = "center") {
             const { ort, session } = await aiGetDetectraSession(onStatus);
             const objectUrl = URL.createObjectURL(file);
             try {
@@ -1332,22 +1381,21 @@
                     image.onerror = () => reject(new Error('Browser could not decode this image format.'));
                     image.src = objectUrl;
                 });
-                const scale = 440 / Math.min(img.naturalWidth, img.naturalHeight);
-                const rw = Math.max(440, Math.round(img.naturalWidth * scale));
-                const rh = Math.max(440, Math.round(img.naturalHeight * scale));
-                const resized = document.createElement('canvas');
-                resized.width = rw; resized.height = rh;
-                const rctx = resized.getContext('2d', { willReadFrequently: true });
-                rctx.imageSmoothingEnabled = true;
-                rctx.imageSmoothingQuality = 'high';
-                rctx.drawImage(img, 0, 0, rw, rh);
-                const crop = document.createElement('canvas');
-                crop.width = 384; crop.height = 384;
-                const cctx = crop.getContext('2d', { willReadFrequently: true });
-                const sx = Math.max(0, Math.floor((rw - 384) / 2));
-                const sy = Math.max(0, Math.floor((rh - 384) / 2));
-                cctx.drawImage(resized, sx, sy, 384, 384, 0, 0, 384, 384);
-                const pixels = cctx.getImageData(0, 0, 384, 384).data;
+                const sourceCanvas = document.createElement('canvas');
+                sourceCanvas.width = img.naturalWidth; sourceCanvas.height = img.naturalHeight;
+                const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true });
+                sourceCtx.drawImage(img, 0, 0);
+                const sourcePixels = sourceCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight).data;
+                const source = { data: sourcePixels, width: img.naturalWidth, height: img.naturalHeight };
+                const scale = 440 / Math.min(source.width, source.height);
+                const rw = Math.max(384, Math.round(source.width * scale));
+                const rh = Math.max(384, Math.round(source.height * scale));
+                const resized = aiSieveResample(source, rw, rh);
+                const positions = { center: [0.5, 0.5], left: [0.2, 0.5], right: [0.8, 0.5], top: [0.5, 0.2], bottom: [0.5, 0.8] };
+                const pos = positions[cropPosition] || positions.center;
+                const maxX = Math.max(0, rw - 384), maxY = Math.max(0, rh - 384);
+                const sx = Math.floor(maxX * pos[0]), sy = Math.floor(maxY * pos[1]);
+                const pixels = aiSieveCrop(resized, sx, sy, 384);
                 const input = new Float32Array(1 * 3 * 384 * 384);
                 const mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225];
                 const plane = 384 * 384;
@@ -1363,7 +1411,8 @@
                 const outName = session.outputNames[0];
                 const data = outputs[outName].data;
                 const raw = Number(data[0]);
-                const pAI = 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, raw)))); // Detectra output is a logit; always apply sigmoid.
+                const calibratedLogit = Math.max(-30, Math.min(30, raw + AI_SIEVE_CALIBRATION_BIAS));
+                const pAI = 1 / (1 + Math.exp(-calibratedLogit)); // Sieve v0.14 manifest: sigmoid(logit / 1.0 + bias 0.2).
                 return { pAI: Math.max(0, Math.min(1, pAI)) };
             } finally { URL.revokeObjectURL(objectUrl); }
         }
@@ -1647,8 +1696,12 @@
                     image.src = url;
                 });
                 const specs = [
-                    { max: 1600, quality: 0.88, name: 're-share-1600-q88.jpg' },
-                    { max: 1280, quality: 0.78, name: 'screenshot-1280-q78.jpg' }
+                    // Common social re-share sizes/qualities plus stronger JPEG stress cases.
+                    // These are local simulations, not claims to reproduce WhatsApp's private encoder.
+                    { max: 1600, quality: 0.88, name: 'reshare-1600-q88.jpg' },
+                    { max: 1280, quality: 0.78, name: 'reshare-1280-q78.jpg' },
+                    { max: 1600, quality: 0.68, name: 'compression-1600-q68.jpg' },
+                    { max: 960, quality: 0.60, name: 'compression-960-q60.jpg' }
                 ];
                 const views = [file];
                 for (let i = 0; i < specs.length; i++) {
@@ -1664,7 +1717,7 @@
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', spec.quality));
                     if (blob && blob.size) views.push(new File([blob], spec.name, { type: 'image/jpeg', lastModified: Date.now() }));
-                    onStatus && onStatus('Prepared screenshot robustness view ' + (i + 1) + ' of 2...');
+                    onStatus && onStatus('Prepared social-share test view ' + (i + 1) + ' of ' + specs.length + '...');
                     await aiYield();
                 }
                 return views;
@@ -1733,24 +1786,39 @@
                 await aiYield();
 
                 update(2, 'Processing Model');
-                const modelResult = await aiRunDetectra(aiDetectorFile, msg => {
+                // Multi-view inference: five spatial crops plus four local social-share/JPEG
+                // stress views. This helps expose score changes after resizing/recompression;
+                // it does not retrain the network or guarantee WhatsApp-specific accuracy.
+                const cropScores = [];
+                const cropPositions = ['center', 'left', 'right', 'top', 'bottom'];
+                for (let i = 0; i < cropPositions.length; i++) {
                     title.textContent = 'Processing Model';
-                    const match = String(msg || '').match(/(\d{1,3})%/);
-                    if (match) {
-                        const pct = Math.max(0, Math.min(100, Number(match[1])));
-                        percent.textContent = Math.round(25 + pct * 0.5) + '%';
-                        bar.style.width = (25 + pct * 0.5) + '%';
-                    }
-                });
+                    const result = await aiRunDetectra(aiDetectorFile, null, cropPositions[i]);
+                    if (result && Number.isFinite(Number(result.pAI))) cropScores.push(Number(result.pAI));
+                    percent.textContent = Math.round(25 + ((i + 1) / cropPositions.length) * 50) + '%';
+                    bar.style.width = percent.textContent;
+                    await aiYield();
+                }
+                const reShareViews = await aiBuildScreenshotViews(aiDetectorFile);
+                for (let i = 1; i < reShareViews.length; i++) {
+                    const result = await aiRunDetectra(reShareViews[i], null, 'center');
+                    if (result && Number.isFinite(Number(result.pAI))) cropScores.push(Number(result.pAI));
+                    percent.textContent = Math.round(75 + (i / (reShareViews.length - 1)) * 15) + '%';
+                    bar.style.width = percent.textContent;
+                    await aiYield();
+                }
+                if (!cropScores.length) throw new Error('No valid model scores were produced.');
+                // Median limits the influence of one unusually high/low crop or JPEG variant.
+                const modelResult = { pAI: aiMedian(cropScores), viewScores: cropScores };
 
                 update(3, 'Reviewing model result and file evidence...');
                 const pAI = Number(modelResult && modelResult.pAI);
                 if (!Number.isFinite(pAI)) throw new Error('The detector returned an invalid score.');
 
-                // Keep the AI threshold at 0.65, but widen the non-AI side to 0.45.
-                // Social apps such as WhatsApp commonly strip metadata and recompress
-                // camera photos; a low-but-borderline score should not be left inconclusive.
-                // This is a practical screening boundary, not a calibrated probability.
+                // Keep the existing conservative screening thresholds. Metadata is not used
+                // as a substitute for pixel classification because social apps may strip it.
+                // The local JPEG stress views test score stability; the result remains a
+                // screening signal, not a calibrated probability or proof of provenance.
                 let verdict = 'INCONCLUSIVE';
                 let isAI = null;
                 let summary = 'The model result is in the middle range. There is not enough evidence for a confident AI or non-AI label.';
@@ -1759,12 +1827,12 @@
                 if (pAI >= 0.65) {
                     verdict = 'LIKELY AI-GENERATED';
                     isAI = true;
-                    summary = 'The compact vision model found a strong AI-generation signal. This is a screening result, not proof of how the image was created.';
+                    summary = 'The Sieve vision model found a strong AI-generation signal across multiple image regions and locally compressed/resized test views. This is a screening result, not proof of how the image was created.';
                     confidenceLabel = 'The model crossed the AI screening boundary (0.65). This score is not a calibrated probability or proof.';
                 } else if (pAI <= 0.45) {
                     verdict = 'LIKELY NON-AI';
                     isAI = false;
-                    summary = 'The model leans toward a non-AI image. This includes low-scoring photos shared through apps such as WhatsApp, which may remove camera metadata and recompress the image. It is not proof of camera origin.';
+                    summary = 'The model leans toward a non-AI image across the original regions and locally compressed/resized test views. WhatsApp forwarding can use different processing, so this is a screening result rather than proof of camera origin.';
                     confidenceLabel = pAI <= 0.35
                         ? 'The model score is below 0.35, giving a stronger non-AI screening signal; this is not proof of camera origin.'
                         : 'The model score is between 0.35 and 0.45, so this is a low-confidence non-AI screening result; WhatsApp compression and missing metadata can affect evidence.';
@@ -1799,8 +1867,13 @@
                     : isAI
                         ? 'This image shows signs commonly associated with AI-generated imagery. This screening result is not definitive proof.'
                         : 'The image shows a stronger non-AI signal. This screening result cannot prove that it came directly from a camera.';
-                document.getElementById('ai-result-confidence').textContent = '';
-                document.getElementById('ai-result-confidence').classList.add('hidden');
+                const scorePercent = (pAI * 100).toFixed(1);
+                const scoreSpread = modelResult.viewScores && modelResult.viewScores.length > 1 ? (Math.max(...modelResult.viewScores) - Math.min(...modelResult.viewScores)) * 100 : 0;
+                const scoreEl = document.getElementById('ai-result-confidence');
+                scoreEl.textContent = scorePercent + '% AI SIGNAL';
+                scoreEl.title = 'Median across ' + (modelResult.viewScores ? modelResult.viewScores.length : 1) + ' local views (five image regions plus social-share/JPEG stress versions); score spread ' + scoreSpread.toFixed(1) + ' points. Not a calibrated probability.';
+                scoreEl.className = 'mt-5 inline-flex items-center justify-center rounded-2xl border px-6 py-3 text-3xl font-black tracking-tight tabular-nums ' + (isAI === true ? 'border-rose-400/30 bg-rose-500/10 text-rose-300' : isAI === false ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300' : 'border-amber-400/30 bg-amber-500/10 text-amber-300');
+                scoreEl.classList.remove('hidden');
                 document.getElementById('ai-result-description').textContent = resultDetail;
                 const modal = document.querySelector('#ai-result-modal > div');
                 const topAccent = modal.querySelector('.absolute.inset-x-0');
@@ -1835,7 +1908,9 @@
                     'No classification was made because processing could not start. Check your internet connection and retry. ' + message;
                 document.getElementById('ai-result-icon').className = 'fa-solid fa-circle-question';
                 document.getElementById('ai-result-confidence').textContent =
-                    'Processing error only — it is not evidence that the image is AI-generated or real.';
+                    'No percentage available — image processing failed.';
+                document.getElementById('ai-result-confidence').className = 'mt-5 text-sm font-semibold text-amber-300';
+                document.getElementById('ai-result-confidence').classList.remove('hidden');
                 document.getElementById('ai-result-modal').classList.remove('hidden');
             } finally {
                 btn.disabled = false;
