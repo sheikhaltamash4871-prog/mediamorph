@@ -1138,8 +1138,11 @@
         // HYBRID IMAGE FORENSICS: SIEVE ONNX MODEL + METADATA + PIXEL CUES
         // ==========================================================
         let aiDetectorFile = null;
-        const AI_DETECTRA_MODEL_URL = new URL('./models/ft1_best_fp16.onnx', document.baseURI).href;
-        const AI_SIEVE_SHA256 = '8392faaf0191c339ed76cf68861b1f4fac15da67e8669fa222e3181c59b2d748';
+        const AI_DETECTRA_MODEL_URLS = [
+            new URL('./models/ft1_best_fp16.onnx', document.baseURI).href,
+            'https://raw.githubusercontent.com/sheikhaltamash4871-prog/mediamorph/main/models/ft1_best_fp16.onnx'
+        ];
+        const AI_SIEVE_SHA256 = '87277637277f7d4f82222f0aaf1b4b114132ca13e5e4f02f71a65693e9606aed';
         const AI_SIEVE_CALIBRATION_BIAS = 0.2;
         let aiDetectraSessionPromise = null;
 
@@ -1167,7 +1170,7 @@
         const AI_MODEL_DB_NAME = 'omnistudio-local-assets';
         const AI_MODEL_DB_VERSION = 1;
         const AI_MODEL_STORE = 'models';
-        const AI_MODEL_CACHE_KEY = 'sieve-v0.14.0-w5810-fp16';
+        const AI_MODEL_CACHE_KEY = 'sieve-ft1-v0.1.0-fp16-87277637';
 
         function aiOpenModelDB() {
             return new Promise((resolve, reject) => {
@@ -1222,9 +1225,8 @@
             return true;
         }
 
-        // Sieve v0.14.0: MIT-licensed local model fine-tuned on modern generators,
-        // including Nano Banana and social-media/JPEG-degraded examples.
-        // Images stay in-browser; model weights are downloaded once and cached locally.
+        // Sieve FT1 v0.1.0 FP16 model. Images stay in-browser; model weights are
+        // downloaded from this GitHub Pages repo (raw GitHub fallback) and cached locally.
         async function aiGetDetectraSession(onStatus) {
             if (!aiDetectraSessionPromise) {
                 const load = (async () => {
@@ -1267,8 +1269,19 @@
                         const controller = new AbortController();
                         const timer = setTimeout(() => controller.abort(), 120000);
                         try {
-                            const response = await fetch(AI_DETECTRA_MODEL_URL, { signal: controller.signal, cache: 'force-cache' });
-                            if (!response.ok) throw new Error('Required processing asset returned HTTP ' + response.status);
+                            let response = null, lastFetchError = null;
+                            for (const modelUrl of AI_DETECTRA_MODEL_URLS) {
+                                try {
+                                    const candidate = await fetch(modelUrl, { signal: controller.signal, cache: 'no-cache' });
+                                    if (!candidate.ok) throw new Error('HTTP ' + candidate.status + ' from ' + modelUrl);
+                                    response = candidate;
+                                    break;
+                                } catch (fetchError) {
+                                    lastFetchError = fetchError;
+                                    if (controller.signal.aborted) throw fetchError;
+                                }
+                            }
+                            if (!response) throw new Error('Model unavailable from GitHub Pages and raw GitHub. ' + String(lastFetchError && lastFetchError.message || 'Network error'));
                             if (!response.body || !response.body.getReader) {
                                 modelBytes = new Uint8Array(await response.arrayBuffer());
                                 onStatus && onStatus('Processing Model 70%');
